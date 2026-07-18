@@ -162,7 +162,7 @@ export default function PhotoBoothApp() {
         </p>
       </header>
 
-      <main className="relative z-10 flex w-full max-w-5xl flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center lg:gap-10">
+      <main className="relative z-10 flex w-full max-w-lg flex-col items-center gap-6">
         {(phase === "idle" || phase === "capturing") && (
           <div className="relative w-full max-w-lg">
             <CameraBooth
@@ -190,13 +190,13 @@ export default function PhotoBoothApp() {
         )}
 
         {phase === "done" && (
-          <div className="flex w-full flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center lg:gap-10">
+          <div className="flex w-full flex-col items-center gap-6">
             <FilmStrip
               dataUrl={stripDataUrl}
               isComposing={isComposing}
               error={stripError}
             />
-            <div className="flex w-full max-w-xs flex-col items-center gap-3 lg:pt-8">
+            <div className="flex w-full max-w-xs flex-col items-center gap-3">
               <DownloadButton dataUrl={stripDataUrl} capturedAt={capturedAt} />
               <button
                 type="button"
@@ -209,7 +209,7 @@ export default function PhotoBoothApp() {
         )}
 
         {(phase === "idle" || phase === "capturing") && (
-          <div className="flex w-full max-w-lg flex-col items-center gap-4 lg:pt-8">
+          <div className="flex w-full max-w-lg flex-col items-center gap-4">
             {phase === "idle" && (
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
