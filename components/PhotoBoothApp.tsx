@@ -242,10 +242,10 @@ export default function PhotoBoothApp() {
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-white px-4 py-8">
       <header className="relative z-10 mb-6 text-center">
         <h1 className="font-handwriting text-3xl font-bold tracking-wide text-booth-film md:text-4xl">
-          인생네컷
+          양문네컷
         </h1>
         <p className="mt-2 font-sans text-xs tracking-[0.3em] text-booth-dim">
-          Life in Four Cuts
+          YangMoon in Four Cuts
         </p>
       </header>
 
@@ -336,9 +336,9 @@ export default function PhotoBoothApp() {
             {phase === "idle" && (
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
-                  컷마다 10초의 준비 시간 후 촬영됩니다.
+                  컷마다 5초의 준비 시간 후 촬영됩니다.
                   <br />
-                  총 8컷 · 약 80초 소요
+                  총 8컷 · 약 40초 소요
                 </p>
                 <button
                   type="button"
