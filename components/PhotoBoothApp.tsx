@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import CameraBooth from "@/components/CameraBooth";
+import CallAdminButton from "@/components/CallAdminButton";
 import CountdownOverlay from "@/components/CountdownOverlay";
 import DownloadButton from "@/components/DownloadButton";
 import FilmStrip from "@/components/FilmStrip";
@@ -10,6 +11,7 @@ import ShotSelector from "@/components/ShotSelector";
 import VideoDownloadButton from "@/components/VideoDownloadButton";
 import { useCamera } from "@/hooks/useCamera";
 import { useFilmStrip } from "@/hooks/useFilmStrip";
+import { useSessionRecorder } from "@/hooks/useSessionRecorder";
 import { useShotRecorder } from "@/hooks/useShotRecorder";
 import { captureFrameFromVideo } from "@/lib/captureFrame";
 import { createMosaicVideo } from "@/lib/createMosaicVideo";
@@ -31,6 +33,8 @@ export default function PhotoBoothApp() {
   const { stripDataUrl, isComposing, error: stripError, compose, reset: resetStrip } =
     useFilmStrip();
   const { startShotRecording, stopShotRecording } = useShotRecorder();
+  const { startRecording: startFullRecording, stopRecording: stopFullRecording } =
+    useSessionRecorder();
 
   const [phase, setPhase] = useState<BoothPhase>("idle");
   const [frames, setFrames] = useState<string[]>([]);
@@ -40,8 +44,10 @@ export default function PhotoBoothApp() {
   const [flash, setFlash] = useState(false);
   const [shotIndex, setShotIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [sessionVideo, setSessionVideo] = useState<Blob | null>(null);
+  const [mosaicVideo, setMosaicVideo] = useState<Blob | null>(null);
+  const [fullSessionVideo, setFullSessionVideo] = useState<Blob | null>(null);
   const [isBuildingMosaic, setIsBuildingMosaic] = useState(false);
+  const [mosaicCountdown, setMosaicCountdown] = useState<number | null>(null);
   const [finalStripDataUrl, setFinalStripDataUrl] = useState<string | null>(null);
 
   const abortRef = useRef(false);
@@ -119,12 +125,24 @@ export default function PhotoBoothApp() {
     setPhase("capturing");
     setFrames([]);
     setSelectedIndices([]);
-    setSessionVideo(null);
+    setMosaicVideo(null);
+    setFullSessionVideo(null);
     setFinalStripDataUrl(null);
     resetStrip();
 
+    // 촬영 세션 전체(8컷 진행되는 동안)를 하나의 영상으로도 이어서 녹화한다
+    // (컷별 짧은 클립은 같은 스트림에서 useShotRecorder가 별도로 동시에 녹화)
+    if (stream) {
+      startFullRecording(stream);
+    }
+
     const sessionStart = new Date();
     const collected = await captureAllShots();
+
+    const fullRecording = await stopFullRecording();
+    if (fullRecording) {
+      setFullSessionVideo(fullRecording.blob);
+    }
 
     if (collected.length === TOTAL_CAPTURE_SHOTS && !abortRef.current) {
       setCapturedAt(sessionStart);
@@ -136,7 +154,15 @@ export default function PhotoBoothApp() {
     setShotCountdown(null);
     setFlash(false);
     setIsRunning(false);
-  }, [isRunning, status, resetStrip, captureAllShots]);
+  }, [
+    isRunning,
+    status,
+    resetStrip,
+    captureAllShots,
+    stream,
+    startFullRecording,
+    stopFullRecording,
+  ]);
 
   const handleConfirmSelection = useCallback(async () => {
     if (selectedIndices.length !== SELECT_COUNT || !capturedAt) return;
@@ -157,8 +183,8 @@ export default function PhotoBoothApp() {
     if (clips.length === SELECT_COUNT) {
       setIsBuildingMosaic(true);
       try {
-        const mosaic = await createMosaicVideo(clips);
-        setSessionVideo(mosaic);
+        const mosaic = await createMosaicVideo(clips, capturedAt);
+        setMosaicVideo(mosaic);
       } catch (err) {
         console.error("모자이크 영상 생성 실패:", err);
       } finally {
@@ -172,7 +198,8 @@ export default function PhotoBoothApp() {
     setPhase("idle");
     setFrames([]);
     setSelectedIndices([]);
-    setSessionVideo(null);
+    setMosaicVideo(null);
+    setFullSessionVideo(null);
     setIsBuildingMosaic(false);
     setFinalStripDataUrl(null);
     shotVideosRef.current = [];
@@ -189,6 +216,20 @@ export default function PhotoBoothApp() {
     stopCamera();
     startCamera();
   }, [resetStrip, stopCamera, startCamera]);
+
+  useEffect(() => {
+    if (!isBuildingMosaic) {
+      setMosaicCountdown(null);
+      return;
+    }
+
+    setMosaicCountdown(PER_SHOT_COUNTDOWN_SECONDS);
+    const interval = window.setInterval(() => {
+      setMosaicCountdown((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [isBuildingMosaic]);
 
   useEffect(() => {
     return () => {
@@ -244,24 +285,40 @@ export default function PhotoBoothApp() {
             />
 
             {isBuildingMosaic && (
-              <p className="font-sans text-xs text-booth-dim">
-                모자이크 영상 합성 중... (약 10초)
-              </p>
+              <div className="flex flex-col items-center gap-3 py-2">
+                <div className="h-9 w-9 animate-spin rounded-full border-2 border-booth-border border-t-booth-film" />
+                <p className="font-sans text-xs text-booth-dim">
+                  모자이크 영상 합성 중
+                  {mosaicCountdown !== null && mosaicCountdown > 0
+                    ? ` · 약 ${mosaicCountdown}초 남음`
+                    : "..."}
+                </p>
+              </div>
             )}
 
             <ShareQr
               stripDataUrl={stripDataUrl}
-              videoBlob={sessionVideo}
+              videoBlob={mosaicVideo}
+              fullVideoBlob={fullSessionVideo}
               onFinalImageReady={setFinalStripDataUrl}
             />
             <div className="flex w-full max-w-xs flex-col items-center gap-3">
+              <CallAdminButton />
               <DownloadButton
                 dataUrl={finalStripDataUrl ?? stripDataUrl}
                 capturedAt={capturedAt}
               />
               <VideoDownloadButton
-                videoBlob={sessionVideo}
+                videoBlob={mosaicVideo}
                 capturedAt={capturedAt}
+                label="영상 저장 (4컷 모자이크)"
+                filenamePrefix="insaeng-neokut-mosaic"
+              />
+              <VideoDownloadButton
+                videoBlob={fullSessionVideo}
+                capturedAt={capturedAt}
+                label="전체영상 저장 (8컷 전체)"
+                filenamePrefix="insaeng-neokut-full"
               />
               <button
                 type="button"
@@ -279,9 +336,9 @@ export default function PhotoBoothApp() {
             {phase === "idle" && (
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
-                  컷마다 5초의 준비 시간 후 촬영됩니다.
+                  컷마다 10초의 준비 시간 후 촬영됩니다.
                   <br />
-                  총 8컷 · 약 40초 소요
+                  총 8컷 · 약 80초 소요
                 </p>
                 <button
                   type="button"

@@ -52,3 +52,36 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+// 관리자(회장님) 호출용 푸시 알림 수신
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+
+  const title = data.title || "관리자 호출";
+  const options = {
+    body: data.body || "청년들이 도움을 요청했어요.",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    vibrate: [200, 100, 200],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 알림을 탭하면 앱 창을 포커스하거나 새로 연다
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clientsArr) => {
+      if (clientsArr.length > 0) {
+        return clientsArr[0].focus();
+      }
+      return self.clients.openWindow("/");
+    }),
+  );
+});

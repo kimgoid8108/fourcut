@@ -3,12 +3,16 @@
 interface VideoDownloadButtonProps {
   videoBlob: Blob | null;
   capturedAt: Date | null;
+  label?: string;
+  filenamePrefix?: string;
   disabled?: boolean;
 }
 
 export default function VideoDownloadButton({
   videoBlob,
   capturedAt,
+  label = "영상 저장",
+  filenamePrefix = "insaeng-neokut",
   disabled = false,
 }: VideoDownloadButtonProps) {
   const handleDownload = () => {
@@ -22,7 +26,7 @@ export default function VideoDownloadButton({
     const url = URL.createObjectURL(videoBlob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `insaeng-neokut-${stamp}.${ext}`;
+    link.download = `${filenamePrefix}-${stamp}.${ext}`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -34,7 +38,7 @@ export default function VideoDownloadButton({
       disabled={!videoBlob || disabled}
       className="w-full rounded border border-booth-film px-6 py-3 font-sans text-sm font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40"
     >
-      영상 저장
+      {label}
     </button>
   );
 }

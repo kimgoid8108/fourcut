@@ -7,8 +7,9 @@ function ShareContent() {
   const params = useSearchParams();
   const img = params.get("img");
   const video = params.get("video");
+  const fullVideo = params.get("fullvideo");
 
-  if (!img && !video) {
+  if (!img && !video && !fullVideo) {
     return (
       <p className="font-sans text-sm text-booth-dim">
         잘못된 링크이거나, 3일이 지나 만료된 링크예요.
@@ -46,6 +47,24 @@ function ShareContent() {
             className="font-sans text-xs text-booth-dim underline"
           >
             영상 저장하기 (탭)
+          </a>
+        </div>
+      )}
+
+      {fullVideo && (
+        <div className="flex flex-col items-center gap-2">
+          <video
+            src={fullVideo}
+            controls
+            playsInline
+            className="max-w-xs rounded shadow-lg"
+          />
+          <a
+            href={fullVideo}
+            download
+            className="font-sans text-xs text-booth-dim underline"
+          >
+            전체영상 저장하기 (탭)
           </a>
         </div>
       )}
