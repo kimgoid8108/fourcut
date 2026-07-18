@@ -1,7 +1,9 @@
 import {
+  CELL_ASPECT_RATIO,
   FILM_BORDER_COLOR,
+  GRID_COLS,
+  GRID_ROWS,
   PHOTO_GAP,
-  PHOTO_HEIGHT,
   SPROCKET_WIDTH,
   STRIP_PADDING,
   STRIP_WIDTH,
@@ -30,7 +32,11 @@ function drawSprocketHoles(
   }
 }
 
-function drawTitle(ctx: CanvasRenderingContext2D, centerX: number, y: number): void {
+function drawTitle(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  y: number,
+): void {
   ctx.fillStyle = "#1a1a1a";
   ctx.font = "600 28px Pretendard, -apple-system, sans-serif";
   ctx.textAlign = "center";
@@ -56,20 +62,22 @@ export async function composeFilmStrip(
   capturedAt: Date,
 ): Promise<string> {
   if (frames.length !== STRIP_PHOTO_COUNT) {
-    throw new Error(`Expected ${STRIP_PHOTO_COUNT} frames, got ${frames.length}`);
+    throw new Error(
+      `Expected ${STRIP_PHOTO_COUNT} frames, got ${frames.length}`,
+    );
   }
 
   const images = await Promise.all(frames.map(loadImage));
 
-  const photoAreaWidth = STRIP_WIDTH - SPROCKET_WIDTH * 2 - STRIP_PADDING * 2;
+  const gridAreaWidth = STRIP_WIDTH - SPROCKET_WIDTH * 2 - STRIP_PADDING * 2;
+  const cellWidth = (gridAreaWidth - PHOTO_GAP * (GRID_COLS - 1)) / GRID_COLS;
+  const cellHeight = cellWidth / CELL_ASPECT_RATIO;
+  const gridHeight = cellHeight * GRID_ROWS + PHOTO_GAP * (GRID_ROWS - 1);
+
   const titleHeight = 52;
   const timestampHeight = 36;
   const contentHeight =
-    titleHeight +
-    STRIP_PHOTO_COUNT * PHOTO_HEIGHT +
-    (STRIP_PHOTO_COUNT - 1) * PHOTO_GAP +
-    timestampHeight +
-    STRIP_PADDING * 2;
+    titleHeight + gridHeight + timestampHeight + STRIP_PADDING * 2;
 
   const canvas = document.createElement("canvas");
   canvas.width = STRIP_WIDTH;
@@ -84,7 +92,13 @@ export async function composeFilmStrip(
   ctx.fillRect(0, 0, STRIP_WIDTH, contentHeight);
 
   drawSprocketHoles(ctx, 0, 0, contentHeight, "left");
-  drawSprocketHoles(ctx, STRIP_WIDTH - SPROCKET_WIDTH, 0, contentHeight, "right");
+  drawSprocketHoles(
+    ctx,
+    STRIP_WIDTH - SPROCKET_WIDTH,
+    0,
+    contentHeight,
+    "right",
+  );
 
   const contentX = SPROCKET_WIDTH + STRIP_PADDING;
   let cursorY = STRIP_PADDING;
@@ -92,26 +106,42 @@ export async function composeFilmStrip(
   drawTitle(ctx, STRIP_WIDTH / 2, cursorY + titleHeight / 2);
   cursorY += titleHeight;
 
+  const gridStartY = cursorY;
+
   for (let i = 0; i < STRIP_PHOTO_COUNT; i++) {
     const img = images[i];
-    const scale = Math.max(photoAreaWidth / img.width, PHOTO_HEIGHT / img.height);
+    const row = Math.floor(i / GRID_COLS);
+    const col = i % GRID_COLS;
+
+    const cellX = contentX + col * (cellWidth + PHOTO_GAP);
+    const cellY = gridStartY + row * (cellHeight + PHOTO_GAP);
+
+    // cover-fit: 셀을 꽉 채우도록 확대한 뒤 중앙 기준으로 잘라서 그림
+    const scale = Math.max(cellWidth / img.width, cellHeight / img.height);
     const drawW = img.width * scale;
     const drawH = img.height * scale;
-    const offsetX = contentX + (photoAreaWidth - drawW) / 2;
-    const offsetY = cursorY + (PHOTO_HEIGHT - drawH) / 2;
+    const offsetX = cellX + (cellWidth - drawW) / 2;
+    const offsetY = cellY + (cellHeight - drawH) / 2;
 
     ctx.fillStyle = "#000";
-    ctx.fillRect(contentX, cursorY, photoAreaWidth, PHOTO_HEIGHT);
-    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
 
-    if (i < STRIP_PHOTO_COUNT - 1) {
-      cursorY += PHOTO_HEIGHT + PHOTO_GAP;
-    } else {
-      cursorY += PHOTO_HEIGHT;
-    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cellX, cellY, cellWidth, cellHeight);
+    ctx.clip();
+    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+    ctx.restore();
   }
 
-  drawTimestamp(ctx, STRIP_WIDTH / 2, cursorY + timestampHeight / 2, capturedAt);
+  cursorY = gridStartY + gridHeight;
+
+  drawTimestamp(
+    ctx,
+    STRIP_WIDTH / 2,
+    cursorY + timestampHeight / 2,
+    capturedAt,
+  );
 
   return canvas.toDataURL("image/png");
 }

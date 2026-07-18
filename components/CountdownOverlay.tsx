@@ -50,19 +50,17 @@ export default function CountdownOverlay({
             {previous !== null && (
               <span
                 aria-hidden
-                className="absolute animate-count-exit font-sans text-[8rem] font-bold leading-none text-booth-film"
-                style={{ textShadow: "0 0 40px rgba(241,239,232,0.3)" }}
-              >
+                className="absolute animate-count-exit font-sans text-[8rem] font-bold leading-none text-booth-onvideo"
+                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}>
                 {previous}
               </span>
             )}
             {current !== null && (
               <span
-                className={`absolute font-sans text-[8rem] font-bold leading-none text-booth-film ${
+                className={`absolute font-sans text-[8rem] font-bold leading-none text-booth-onvideo ${
                   previous !== null ? "animate-count-enter" : ""
                 }`}
-                style={{ textShadow: "0 0 40px rgba(241,239,232,0.3)" }}
-              >
+                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}>
                 {current}
               </span>
             )}

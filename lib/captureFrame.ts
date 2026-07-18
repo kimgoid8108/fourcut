@@ -1,4 +1,4 @@
-const FILTER = "grayscale(100%) contrast(1.35) brightness(0.95)";
+const FILTER = "none";
 
 export function applyFilmFilter(ctx: CanvasRenderingContext2D): void {
   ctx.filter = FILTER;

@@ -10,14 +10,15 @@ const config: Config = {
     extend: {
       colors: {
         booth: {
-          bg: "#0a0a0a",
-          surface: "#121212",
-          muted: "#1a1a1a",
-          border: "#2a2a2a",
-          text: "#e8e6e0",
-          dim: "#888880",
-          film: "#f1efe8",
-          accent: "#c8c4b8",
+          bg: "#ffffff",
+          surface: "#ffffff",
+          muted: "#f5f5f4",
+          border: "#e7e5e1",
+          text: "#232220",
+          dim: "#8c887f",
+          film: "#232220",
+          accent: "#a8622f",
+          onvideo: "#f5f3ec",
         },
       },
       fontFamily: {
@@ -31,7 +32,7 @@ const config: Config = {
       },
       boxShadow: {
         vignette: "inset 0 0 120px rgba(0,0,0,0.85)",
-        booth: "0 8px 32px rgba(0,0,0,0.6)",
+        booth: "0 8px 28px rgba(40,34,24,0.14)",
       },
       animation: {
         flash: "flash 0.35s ease-out forwards",

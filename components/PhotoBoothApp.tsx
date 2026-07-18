@@ -24,8 +24,13 @@ function wait(ms: number): Promise<void> {
 export default function PhotoBoothApp() {
   const { videoRef, stream, status, errorMessage, startCamera, stopCamera } =
     useCamera({ facingMode: "user" });
-  const { stripDataUrl, isComposing, error: stripError, compose, reset: resetStrip } =
-    useFilmStrip();
+  const {
+    stripDataUrl,
+    isComposing,
+    error: stripError,
+    compose,
+    reset: resetStrip,
+  } = useFilmStrip();
 
   const [phase, setPhase] = useState<BoothPhase>("idle");
   const [frames, setFrames] = useState<string[]>([]);
@@ -132,10 +137,12 @@ export default function PhotoBoothApp() {
     setIsRunning(false);
     resetStrip();
 
-    if (status !== "ready") {
-      startCamera();
-    }
-  }, [resetStrip, status, startCamera]);
+    // 촬영/선택 화면으로 넘어가는 동안 <video> 엘리먼트가 언마운트되어
+    // 기존 스트림이 새 엘리먼트에 다시 연결되지 않는 문제가 있어서,
+    // 처음으로 돌아갈 때는 항상 카메라를 완전히 껐다가 새로 켠다.
+    stopCamera();
+    startCamera();
+  }, [resetStrip, stopCamera, startCamera]);
 
   useEffect(() => {
     return () => {
@@ -145,10 +152,7 @@ export default function PhotoBoothApp() {
   }, [stopCamera]);
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-y-auto px-4 py-8">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#070707_75%)]" />
-      <div className="pointer-events-none fixed inset-0 film-grain opacity-[0.06] mix-blend-overlay" />
-
+    <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-white px-4 py-8">
       <header className="relative z-10 mb-6 text-center">
         <h1 className="font-sans text-3xl font-bold tracking-wide text-booth-film md:text-4xl">
           인생네컷
@@ -197,9 +201,8 @@ export default function PhotoBoothApp() {
               <button
                 type="button"
                 onClick={handleRetake}
-                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent"
-              >
-                다시 촬영
+                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
+                처음으로 돌아가기
               </button>
             </div>
           </div>
@@ -211,15 +214,13 @@ export default function PhotoBoothApp() {
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
                   컷마다 10초의 준비 시간 후 촬영됩니다.
-                  <br />
-                  총 8컷 · 약 80초 소요
+                  <br />총 8컷 · 약 80초 소요
                 </p>
                 <button
                   type="button"
                   onClick={startCaptureSequence}
                   disabled={status !== "ready" || isRunning}
-                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40"
-                >
+                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40">
                   촬영 시작
                 </button>
               </>

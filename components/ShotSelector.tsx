@@ -63,12 +63,11 @@ export default function ShotSelector({
               key={index}
               type="button"
               onClick={() => handleToggle(index)}
-              className={`group relative aspect-[4/3] overflow-hidden rounded-sm border-2 transition-all ${
+              className={`group relative aspect-[3/4] overflow-hidden rounded-sm border-2 transition-all ${
                 isSelected
                   ? "border-booth-film ring-2 ring-booth-film/30"
                   : "border-booth-border hover:border-booth-accent"
-              } ${isShaking ? "animate-shake" : ""}`}
-            >
+              } ${isShaking ? "animate-shake" : ""}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={frame}
@@ -76,7 +75,7 @@ export default function ShotSelector({
                 className="h-full w-full scale-x-[-1] object-cover"
               />
 
-              <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 font-sans text-xs font-medium text-booth-film">
+              <span className="absolute left-2 top-2 rounded bg-black/70 px-2 py-0.5 font-sans text-xs font-medium text-booth-onvideo">
                 #{index + 1}
               </span>
 
@@ -97,16 +96,14 @@ export default function ShotSelector({
           type="button"
           onClick={onNext}
           disabled={!canProceed}
-          className="w-full rounded border border-booth-film bg-booth-film px-6 py-3.5 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-40"
-        >
+          className="w-full rounded border border-booth-film bg-booth-film px-6 py-3.5 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-40">
           다음
         </button>
         <button
           type="button"
           onClick={onRetake}
-          className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent"
-        >
-          다시 촬영
+          className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
+          처음으로 돌아가기
         </button>
       </div>
     </div>
