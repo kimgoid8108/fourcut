@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import CameraBooth from "@/components/CameraBooth";
 import CallAdminButton from "@/components/CallAdminButton";
 import CountdownOverlay from "@/components/CountdownOverlay";
@@ -245,7 +246,7 @@ export default function PhotoBoothApp() {
           양문네컷
         </h1>
         <p className="mt-2 font-sans text-xs tracking-[0.3em] text-booth-dim">
-          YangMoon in Four Cuts
+          Yangmoon Four Cuts
         </p>
       </header>
 
@@ -288,7 +289,7 @@ export default function PhotoBoothApp() {
               <div className="flex flex-col items-center gap-3 py-2">
                 <div className="h-9 w-9 animate-spin rounded-full border-2 border-booth-border border-t-booth-film" />
                 <p className="font-sans text-xs text-booth-dim">
-                  모자이크 영상 합성 중
+                  영상 생성 중입니다
                   {mosaicCountdown !== null && mosaicCountdown > 0
                     ? ` · 약 ${mosaicCountdown}초 남음`
                     : "..."}
@@ -312,13 +313,13 @@ export default function PhotoBoothApp() {
                 videoBlob={mosaicVideo}
                 capturedAt={capturedAt}
                 label="영상 저장 (4컷 모자이크)"
-                filenamePrefix="insaeng-neokut-mosaic"
+                filenamePrefix="yangmun-necut-mosaic"
               />
               <VideoDownloadButton
                 videoBlob={fullSessionVideo}
                 capturedAt={capturedAt}
                 label="전체영상 저장 (8컷 전체)"
-                filenamePrefix="insaeng-neokut-full"
+                filenamePrefix="yangmun-necut-full"
               />
               <button
                 type="button"
@@ -373,8 +374,11 @@ export default function PhotoBoothApp() {
         )}
       </main>
 
-      <footer className="relative z-10 mt-8 font-sans text-[10px] tracking-widest text-booth-dim/60">
-        이 페이지는 세종글꽃체를 사용하여 제작되었습니다.
+      <footer className="relative z-10 mt-8 flex flex-col items-center gap-2 font-sans text-[10px] tracking-widest text-booth-dim/60">
+        <p>이 페이지는 세종글꽃체를 사용하여 제작되었습니다.</p>
+        <Link href="/admin" className="text-booth-dim/40 underline">
+          관리자
+        </Link>
       </footer>
     </div>
   );

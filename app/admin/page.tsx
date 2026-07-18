@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -13,14 +13,60 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-type Status = "idle" | "subscribing" | "done" | "error";
+type AuthStatus = "checking" | "loggedOut" | "loggedIn";
+type SubStatus = "idle" | "subscribing" | "done" | "error";
 
 export default function AdminPage() {
-  const [status, setStatus] = useState<Status>("idle");
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const [subStatus, setSubStatus] = useState<SubStatus>("idle");
   const [message, setMessage] = useState("");
 
+  useEffect(() => {
+    fetch("/api/admin/session")
+      .then((res) => res.json())
+      .then((data) => setAuthStatus(data.authenticated ? "loggedIn" : "loggedOut"))
+      .catch(() => setAuthStatus("loggedOut"));
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "로그인에 실패했어요.");
+      }
+
+      setAuthStatus("loggedIn");
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "로그인에 실패했어요.");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/admin/login", { method: "DELETE" });
+    setAuthStatus("loggedOut");
+    setEmail("");
+    setPassword("");
+  };
+
   const subscribe = async () => {
-    setStatus("subscribing");
+    setSubStatus("subscribing");
     setMessage("");
 
     try {
@@ -40,7 +86,6 @@ export default function AdminPage() {
 
       const registration = await navigator.serviceWorker.ready;
 
-      // 기존 구독이 있으면 정리하고 새로 구독 (기기를 바꿨을 때 대비)
       const existing = await registration.pushManager.getSubscription();
       if (existing) {
         await existing.unsubscribe();
@@ -61,15 +106,69 @@ export default function AdminPage() {
         throw new Error("구독 정보 저장에 실패했어요.");
       }
 
-      setStatus("done");
+      setSubStatus("done");
       setMessage(
-        "구독 완료! 이제 청년들이 '관리자(회장님) 부르기'를 누르면 이 기기로 알림이 와요.",
+        "구독 완료! 이제 손님이 '관리자(회장님) 부르기'를 누르면 이 기기로 알림이 와요.",
       );
     } catch (err) {
-      setStatus("error");
+      setSubStatus("error");
       setMessage(err instanceof Error ? err.message : "알 수 없는 오류가 발생했어요.");
     }
   };
+
+  if (authStatus === "checking") {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-white">
+        <p className="font-sans text-sm text-booth-dim">확인 중...</p>
+      </div>
+    );
+  }
+
+  if (authStatus === "loggedOut") {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-white px-6 text-center">
+        <h1 className="font-sans text-2xl font-bold text-booth-film">
+          관리자 로그인
+        </h1>
+        <p className="max-w-xs font-sans text-sm text-booth-dim">
+          회장님만 들어올 수 있는 페이지예요. 이메일과 비밀번호를 입력해주세요.
+        </p>
+
+        <form
+          onSubmit={handleLogin}
+          className="flex w-full max-w-xs flex-col gap-3"
+        >
+          <input
+            type="email"
+            required
+            placeholder="이메일"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="rounded border border-booth-border px-4 py-3 font-sans text-sm text-booth-text outline-none focus:border-booth-film"
+          />
+          <input
+            type="password"
+            required
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded border border-booth-border px-4 py-3 font-sans text-sm text-booth-text outline-none focus:border-booth-film"
+          />
+          <button
+            type="submit"
+            disabled={loggingIn}
+            className="rounded border border-booth-film bg-booth-film px-6 py-3 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loggingIn ? "확인 중..." : "로그인"}
+          </button>
+        </form>
+
+        {loginError && (
+          <p className="font-sans text-xs text-red-500">{loginError}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-white px-6 text-center">
@@ -79,22 +178,22 @@ export default function AdminPage() {
       <p className="max-w-xs font-sans text-sm text-booth-dim">
         회장님 폰에서 이 페이지를 열고 아래 버튼을 눌러주세요.
         <br />
-        한 번 구독해두면, 청년들이 도움을 요청할 때마다 이 기기로 알림이 와요.
+        한 번 구독해두면, 손님이 도움을 요청할 때마다 이 기기로 알림이 와요.
       </p>
 
       <button
         type="button"
         onClick={subscribe}
-        disabled={status === "subscribing" || status === "done"}
+        disabled={subStatus === "subscribing" || subStatus === "done"}
         className="rounded border border-booth-film px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {status === "done" ? "구독 완료됨 ✓" : "알림 받기 시작"}
+        {subStatus === "done" ? "구독 완료됨 ✓" : "알림 받기 시작"}
       </button>
 
       {message && (
         <p
           className={`max-w-xs font-sans text-xs ${
-            status === "error" ? "text-red-500" : "text-booth-dim"
+            subStatus === "error" ? "text-red-500" : "text-booth-dim"
           }`}
         >
           {message}
@@ -104,6 +203,14 @@ export default function AdminPage() {
       <p className="mt-4 font-sans text-[10px] text-booth-dim/60">
         다른 기기로 바꾸고 싶으면, 그 기기에서 이 페이지를 열고 다시 구독하면 돼요.
       </p>
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="mt-6 font-sans text-[11px] text-booth-dim/60 underline"
+      >
+        로그아웃
+      </button>
     </div>
   );
 }
