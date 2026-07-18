@@ -21,7 +21,7 @@ export default function CallAdminButton() {
       }
 
       setStatus("sent");
-      window.setTimeout(() => setStatus("idle"), 5000);
+      window.setTimeout(() => setStatus("idle"), 15000);
     } catch (err) {
       setStatus("error");
       setErrorMessage(
@@ -39,7 +39,7 @@ export default function CallAdminButton() {
         className="w-full rounded border border-booth-accent px-6 py-3 font-sans text-sm font-semibold text-booth-accent transition enabled:hover:bg-booth-accent enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-60"
       >
         {status === "sending" && "호출 중..."}
-        {status === "sent" && "관리자에게 알림을 보냈어요 ✓"}
+        {status === "sent" && "🏃 관리자(회장님) 달려가는 중이에요!"}
         {(status === "idle" || status === "error") && "🙋 관리자(회장님) 부르기"}
       </button>
 
