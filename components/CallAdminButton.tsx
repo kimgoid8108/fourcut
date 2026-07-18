@@ -40,7 +40,7 @@ export default function CallAdminButton() {
       >
         {status === "sending" && "호출 중..."}
         {status === "sent" && "🏃 관리자(회장님) 달려가는 중이에요!"}
-        {(status === "idle" || status === "error") && "🙋 관리자(회장님) 부르기"}
+        {(status === "idle" || status === "error") && "🙋 사진을 뽑고 싶으면 관리자(회장님) 부르기"}
       </button>
 
       {status === "error" && errorMessage && (

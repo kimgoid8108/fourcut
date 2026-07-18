@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -18,19 +18,6 @@ type Status = "idle" | "subscribing" | "done" | "error";
 export default function AdminPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState("");
-
-  // 메인 앱(/)의 매니페스트가 기본으로 연결되어 있어서, 이 페이지에서는
-  // /admin 전용 매니페스트로 바꿔치기한다. 그래야 이 화면에서
-  // "홈 화면에 추가"를 눌렀을 때 /admin으로 바로 열리는 아이콘이 생긴다.
-  useEffect(() => {
-    let link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "manifest";
-      document.head.appendChild(link);
-    }
-    link.setAttribute("href", "/admin/manifest.webmanifest");
-  }, []);
 
   const subscribe = async () => {
     setStatus("subscribing");
@@ -92,7 +79,7 @@ export default function AdminPage() {
       <p className="max-w-xs font-sans text-sm text-booth-dim">
         회장님 폰에서 이 페이지를 열고 아래 버튼을 눌러주세요.
         <br />
-        한 번 구독해두면, 손님이 도움을 요청할 때마다 이 기기로 알림이 와요.
+        한 번 구독해두면, 청년들이 도움을 요청할 때마다 이 기기로 알림이 와요.
       </p>
 
       <button

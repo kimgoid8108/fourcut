@@ -2,15 +2,13 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-static";
 
-// Next.js의 manifest.ts 파일 규칙은 루트(app/manifest.ts)에서만 동작해서,
-// /admin 전용 매니페스트는 이렇게 직접 라우트 핸들러로 만든다.
 export async function GET() {
   return NextResponse.json(
     {
-      name: "인생네컷 관리자 알림",
-      short_name: "관리자 알림",
-      description: "손님 호출 알림을 받는 관리자 전용 페이지",
-      start_url: "/admin",
+      name: "인생네컷 | Life in Four Cuts",
+      short_name: "인생네컷",
+      description: "아이패드 전면 카메라로 촬영하는 4컷 포토부스",
+      start_url: "/",
       display: "standalone",
       orientation: "portrait",
       background_color: "#ffffff",
