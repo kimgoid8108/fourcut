@@ -9,7 +9,7 @@ export const TOTAL_CAPTURE_SHOTS = 8;
 export const SELECT_COUNT = 4;
 export const STRIP_PHOTO_COUNT = 4;
 
-export const PER_SHOT_COUNTDOWN_SECONDS = 10;
+export const PER_SHOT_COUNTDOWN_SECONDS = 5;
 export const FLASH_DURATION_MS = 350;
 
 export const FILM_BORDER_COLOR = "white";

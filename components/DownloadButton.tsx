@@ -29,7 +29,7 @@ export default function DownloadButton({
       disabled={!dataUrl || disabled}
       className="rounded border border-booth-film bg-booth-film px-6 py-3 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-40"
     >
-      PNG 저장
+      이미지 저장
     </button>
   );
 }

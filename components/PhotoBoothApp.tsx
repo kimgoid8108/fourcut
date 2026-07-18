@@ -7,10 +7,12 @@ import DownloadButton from "@/components/DownloadButton";
 import FilmStrip from "@/components/FilmStrip";
 import ShareQr from "@/components/ShareQr";
 import ShotSelector from "@/components/ShotSelector";
+import VideoDownloadButton from "@/components/VideoDownloadButton";
 import { useCamera } from "@/hooks/useCamera";
 import { useFilmStrip } from "@/hooks/useFilmStrip";
-import { useSessionRecorder } from "@/hooks/useSessionRecorder";
+import { useShotRecorder } from "@/hooks/useShotRecorder";
 import { captureFrameFromVideo } from "@/lib/captureFrame";
+import { createMosaicVideo } from "@/lib/createMosaicVideo";
 import {
   FLASH_DURATION_MS,
   PER_SHOT_COUNTDOWN_SECONDS,
@@ -28,7 +30,7 @@ export default function PhotoBoothApp() {
     useCamera({ facingMode: "user" });
   const { stripDataUrl, isComposing, error: stripError, compose, reset: resetStrip } =
     useFilmStrip();
-  const { startRecording, stopRecording } = useSessionRecorder();
+  const { startShotRecording, stopShotRecording } = useShotRecorder();
 
   const [phase, setPhase] = useState<BoothPhase>("idle");
   const [frames, setFrames] = useState<string[]>([]);
@@ -39,9 +41,12 @@ export default function PhotoBoothApp() {
   const [shotIndex, setShotIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [sessionVideo, setSessionVideo] = useState<Blob | null>(null);
+  const [isBuildingMosaic, setIsBuildingMosaic] = useState(false);
   const [finalStripDataUrl, setFinalStripDataUrl] = useState<string | null>(null);
 
   const abortRef = useRef(false);
+  // 컷별로 따로 녹화해둔 10초 영상 클립들. shotVideosRef.current[i] = i번째 컷의 영상
+  const shotVideosRef = useRef<(Blob | null)[]>([]);
 
   useEffect(() => {
     startCamera();
@@ -59,15 +64,30 @@ export default function PhotoBoothApp() {
     return captureFrameFromVideo(video);
   }, [videoRef]);
 
-  const runShotCountdown = useCallback(async (): Promise<boolean> => {
-    for (let sec = PER_SHOT_COUNTDOWN_SECONDS; sec >= 1; sec -= 1) {
-      if (abortRef.current) return false;
-      setShotCountdown(sec);
-      await wait(1000);
-    }
-    setShotCountdown(null);
-    return !abortRef.current;
-  }, []);
+  const runShotCountdown = useCallback(
+    async (shotIdx: number): Promise<boolean> => {
+      if (stream) {
+        startShotRecording(stream);
+      }
+
+      for (let sec = PER_SHOT_COUNTDOWN_SECONDS; sec >= 1; sec -= 1) {
+        if (abortRef.current) {
+          await stopShotRecording();
+          return false;
+        }
+        setShotCountdown(sec);
+        await wait(1000);
+      }
+
+      setShotCountdown(null);
+
+      const clip = await stopShotRecording();
+      shotVideosRef.current[shotIdx] = clip;
+
+      return !abortRef.current;
+    },
+    [stream, startShotRecording, stopShotRecording],
+  );
 
   const captureAllShots = useCallback(async () => {
     const collected: string[] = [];
@@ -77,7 +97,7 @@ export default function PhotoBoothApp() {
 
       setShotIndex(i);
 
-      const ready = await runShotCountdown();
+      const ready = await runShotCountdown(i);
       if (!ready) break;
 
       const frame = await captureWithFlash();
@@ -94,6 +114,7 @@ export default function PhotoBoothApp() {
     if (isRunning || status !== "ready") return;
 
     abortRef.current = false;
+    shotVideosRef.current = [];
     setIsRunning(true);
     setPhase("capturing");
     setFrames([]);
@@ -102,19 +123,8 @@ export default function PhotoBoothApp() {
     setFinalStripDataUrl(null);
     resetStrip();
 
-    // 촬영 세션 전체(8컷 진행되는 동안)를 하나의 영상으로 이어서 녹화 시작
-    // — 실제 인생네컷/포토이즘처럼 선택 결과와 무관하게 세션 전체를 담는다.
-    if (stream) {
-      startRecording(stream);
-    }
-
     const sessionStart = new Date();
     const collected = await captureAllShots();
-
-    const recorded = await stopRecording();
-    if (recorded) {
-      setSessionVideo(recorded.blob);
-    }
 
     if (collected.length === TOTAL_CAPTURE_SHOTS && !abortRef.current) {
       setCapturedAt(sessionStart);
@@ -126,15 +136,7 @@ export default function PhotoBoothApp() {
     setShotCountdown(null);
     setFlash(false);
     setIsRunning(false);
-  }, [
-    isRunning,
-    status,
-    resetStrip,
-    captureAllShots,
-    stream,
-    startRecording,
-    stopRecording,
-  ]);
+  }, [isRunning, status, resetStrip, captureAllShots]);
 
   const handleConfirmSelection = useCallback(async () => {
     if (selectedIndices.length !== SELECT_COUNT || !capturedAt) return;
@@ -144,6 +146,25 @@ export default function PhotoBoothApp() {
 
     setPhase("done");
     await compose(selectedFrames, capturedAt);
+
+    // 선택된 4컷에 해당하는 영상 클립들을, 사진과 같은 2x2 배치로
+    // 동시에 재생되는 모자이크 영상 하나로 합성한다 (실시간 재생 방식이라
+    // 클립 길이(약 10초)만큼 처리 시간이 걸린다).
+    const clips = ordered
+      .map((index) => shotVideosRef.current[index])
+      .filter((clip): clip is Blob => Boolean(clip));
+
+    if (clips.length === SELECT_COUNT) {
+      setIsBuildingMosaic(true);
+      try {
+        const mosaic = await createMosaicVideo(clips);
+        setSessionVideo(mosaic);
+      } catch (err) {
+        console.error("모자이크 영상 생성 실패:", err);
+      } finally {
+        setIsBuildingMosaic(false);
+      }
+    }
   }, [selectedIndices, capturedAt, frames, compose]);
 
   const handleRetake = useCallback(() => {
@@ -152,7 +173,9 @@ export default function PhotoBoothApp() {
     setFrames([]);
     setSelectedIndices([]);
     setSessionVideo(null);
+    setIsBuildingMosaic(false);
     setFinalStripDataUrl(null);
+    shotVideosRef.current = [];
     setCapturedAt(null);
     setShotCountdown(null);
     setFlash(false);
@@ -219,6 +242,13 @@ export default function PhotoBoothApp() {
               isComposing={isComposing}
               error={stripError}
             />
+
+            {isBuildingMosaic && (
+              <p className="font-sans text-xs text-booth-dim">
+                모자이크 영상 합성 중... (약 10초)
+              </p>
+            )}
+
             <ShareQr
               stripDataUrl={stripDataUrl}
               videoBlob={sessionVideo}
@@ -227,6 +257,10 @@ export default function PhotoBoothApp() {
             <div className="flex w-full max-w-xs flex-col items-center gap-3">
               <DownloadButton
                 dataUrl={finalStripDataUrl ?? stripDataUrl}
+                capturedAt={capturedAt}
+              />
+              <VideoDownloadButton
+                videoBlob={sessionVideo}
                 capturedAt={capturedAt}
               />
               <button
@@ -245,9 +279,9 @@ export default function PhotoBoothApp() {
             {phase === "idle" && (
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
-                  컷마다 10초의 준비 시간 후 촬영됩니다.
+                  컷마다 5초의 준비 시간 후 촬영됩니다.
                   <br />
-                  총 8컷 · 약 80초 소요
+                  총 8컷 · 약 40초 소요
                 </p>
                 <button
                   type="button"

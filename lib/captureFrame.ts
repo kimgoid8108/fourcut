@@ -1,3 +1,5 @@
+import { applyAutoBeautify } from "@/lib/autoCorrect";
+
 const FILTER = "none";
 
 export function applyFilmFilter(ctx: CanvasRenderingContext2D): void {
@@ -43,6 +45,9 @@ export function captureFrameFromVideo(
   applyFilmFilter(ctx);
   ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
   resetCanvasFilter(ctx);
+
+  // 화이트밸런스 + 자동 밝기/대비 + 은은한 소프트 글로우
+  applyAutoBeautify(canvas);
 
   return canvas.toDataURL("image/png");
 }

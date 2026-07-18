@@ -2,8 +2,6 @@
 
 import { useCallback, useRef } from "react";
 
-// 아이패드 사파리는 webm을 지원 안 하는 경우가 많아서, 지원하는 포맷을
-// 순서대로 확인해서 첫 번째로 되는 걸 쓴다.
 const CANDIDATE_MIME_TYPES = [
   "video/mp4",
   "video/webm;codecs=vp9",
@@ -16,27 +14,21 @@ function pickSupportedMimeType(): string | undefined {
   return CANDIDATE_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
 }
 
-interface UseSessionRecorderResult {
-  isSupported: boolean;
-  startRecording: (stream: MediaStream) => void;
-  stopRecording: () => Promise<{ blob: Blob; mimeType: string } | null>;
+interface UseShotRecorderResult {
+  startShotRecording: (stream: MediaStream) => void;
+  stopShotRecording: () => Promise<Blob | null>;
 }
 
 /**
- * 촬영 세션 전체(8컷 진행되는 동안)를 하나의 영상으로 이어서 녹화한다.
- * 실제 인생네컷/포토이즘 부스처럼, 선택된 사진과 무관하게 세션 전체를 그대로 담는다.
+ * 컷 하나(10초 카운트다운)씩 짧은 영상 클립으로 따로 녹화한다.
+ * 나중에 선택된 4컷에 해당하는 클립 4개만 모아서 모자이크 영상을 만든다.
  */
-export function useSessionRecorder(): UseSessionRecorderResult {
+export function useShotRecorder(): UseShotRecorderResult {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const mimeTypeRef = useRef<string>("video/webm");
 
-  const isSupported =
-    typeof window !== "undefined" && typeof MediaRecorder !== "undefined";
-
-  const startRecording = useCallback((stream: MediaStream) => {
-    if (!isSupported) return;
-
+  const startShotRecording = useCallback((stream: MediaStream) => {
     const mimeType = pickSupportedMimeType();
     if (!mimeType) return;
 
@@ -46,7 +38,7 @@ export function useSessionRecorder(): UseSessionRecorderResult {
     try {
       const recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 3_000_000, // 화질 우선으로 상향 (직접 업로드라 용량 제한 없음)
+        videoBitsPerSecond: 3_000_000,
       });
 
       recorder.ondataavailable = (e) => {
@@ -55,18 +47,15 @@ export function useSessionRecorder(): UseSessionRecorderResult {
         }
       };
 
-      recorder.start(1000); // 1초마다 청크 저장
+      recorder.start(250);
       recorderRef.current = recorder;
     } catch (err) {
-      console.error("MediaRecorder 시작 실패:", err);
+      console.error("컷 영상 녹화 시작 실패:", err);
       recorderRef.current = null;
     }
-  }, [isSupported]);
+  }, []);
 
-  const stopRecording = useCallback((): Promise<{
-    blob: Blob;
-    mimeType: string;
-  } | null> => {
+  const stopShotRecording = useCallback((): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
       if (!recorder || recorder.state === "inactive") {
@@ -78,12 +67,12 @@ export function useSessionRecorder(): UseSessionRecorderResult {
         const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current });
         chunksRef.current = [];
         recorderRef.current = null;
-        resolve(blob.size > 0 ? { blob, mimeType: mimeTypeRef.current } : null);
+        resolve(blob.size > 0 ? blob : null);
       };
 
       recorder.stop();
     });
   }, []);
 
-  return { isSupported, startRecording, stopRecording };
+  return { startShotRecording, stopShotRecording };
 }

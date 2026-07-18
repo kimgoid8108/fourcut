@@ -24,9 +24,9 @@ export async function overlayQrOnStrip(
 
   ctx.drawImage(base, 0, 0);
 
-  // 사진 너비의 약 16%를 QR 크기로, 우측 하단(대각선 아래) 모서리에 배치
-  const qrSize = Math.round(base.width * 0.16);
-  const margin = Math.round(base.width * 0.035);
+  // 사진 너비의 약 10%를 QR 크기로, 우측 하단(대각선 아래) 모서리에 배치
+  const qrSize = Math.round(base.width * 0.1);
+  const margin = Math.round(base.width * 0.03);
   const x = base.width - qrSize - margin;
   const y = base.height - qrSize - margin;
 

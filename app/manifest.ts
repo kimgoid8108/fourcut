@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "인생네컷 | Life in Four Cuts",
-    short_name: "인생네컷",
+    name: "양문네컷 | YangMoon in Four Cuts",
+    short_name: "양문네컷",
     description: "아이패드 전면 카메라로 촬영하는 4컷 포토부스",
     start_url: "/",
     display: "standalone",
