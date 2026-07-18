@@ -36,10 +36,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
   }, []);
 
   const startCamera = useCallback(async () => {
-    if (
-      typeof window === "undefined" ||
-      !navigator.mediaDevices?.getUserMedia
-    ) {
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setStatus("error");
       setErrorMessage("이 브라우저는 카메라를 지원하지 않습니다.");
       return;
@@ -69,22 +66,14 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
       setStatus("error");
 
       if (err instanceof DOMException) {
-        if (
-          err.name === "NotAllowedError" ||
-          err.name === "PermissionDeniedError"
-        ) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
           setErrorMessage(
             "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 접근을 허용해 주세요.",
           );
-        } else if (
-          err.name === "NotFoundError" ||
-          err.name === "DevicesNotFoundError"
-        ) {
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
           setErrorMessage("사용 가능한 카메라를 찾을 수 없습니다.");
         } else if (err.name === "NotReadableError") {
-          setErrorMessage(
-            "카메라가 다른 앱에서 사용 중입니다. 앱을 종료한 뒤 다시 시도해 주세요.",
-          );
+          setErrorMessage("카메라가 다른 앱에서 사용 중입니다. 앱을 종료한 뒤 다시 시도해 주세요.");
         } else {
           setErrorMessage(`카메라를 시작할 수 없습니다. (${err.name})`);
         }

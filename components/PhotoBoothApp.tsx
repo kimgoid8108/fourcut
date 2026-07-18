@@ -5,9 +5,11 @@ import CameraBooth from "@/components/CameraBooth";
 import CountdownOverlay from "@/components/CountdownOverlay";
 import DownloadButton from "@/components/DownloadButton";
 import FilmStrip from "@/components/FilmStrip";
+import ShareQr from "@/components/ShareQr";
 import ShotSelector from "@/components/ShotSelector";
 import { useCamera } from "@/hooks/useCamera";
 import { useFilmStrip } from "@/hooks/useFilmStrip";
+import { useSessionRecorder } from "@/hooks/useSessionRecorder";
 import { captureFrameFromVideo } from "@/lib/captureFrame";
 import {
   FLASH_DURATION_MS,
@@ -24,13 +26,9 @@ function wait(ms: number): Promise<void> {
 export default function PhotoBoothApp() {
   const { videoRef, stream, status, errorMessage, startCamera, stopCamera } =
     useCamera({ facingMode: "user" });
-  const {
-    stripDataUrl,
-    isComposing,
-    error: stripError,
-    compose,
-    reset: resetStrip,
-  } = useFilmStrip();
+  const { stripDataUrl, isComposing, error: stripError, compose, reset: resetStrip } =
+    useFilmStrip();
+  const { startRecording, stopRecording } = useSessionRecorder();
 
   const [phase, setPhase] = useState<BoothPhase>("idle");
   const [frames, setFrames] = useState<string[]>([]);
@@ -40,6 +38,8 @@ export default function PhotoBoothApp() {
   const [flash, setFlash] = useState(false);
   const [shotIndex, setShotIndex] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
+  const [sessionVideo, setSessionVideo] = useState<Blob | null>(null);
+  const [finalStripDataUrl, setFinalStripDataUrl] = useState<string | null>(null);
 
   const abortRef = useRef(false);
 
@@ -98,10 +98,23 @@ export default function PhotoBoothApp() {
     setPhase("capturing");
     setFrames([]);
     setSelectedIndices([]);
+    setSessionVideo(null);
+    setFinalStripDataUrl(null);
     resetStrip();
+
+    // 촬영 세션 전체(8컷 진행되는 동안)를 하나의 영상으로 이어서 녹화 시작
+    // — 실제 인생네컷/포토이즘처럼 선택 결과와 무관하게 세션 전체를 담는다.
+    if (stream) {
+      startRecording(stream);
+    }
 
     const sessionStart = new Date();
     const collected = await captureAllShots();
+
+    const recorded = await stopRecording();
+    if (recorded) {
+      setSessionVideo(recorded.blob);
+    }
 
     if (collected.length === TOTAL_CAPTURE_SHOTS && !abortRef.current) {
       setCapturedAt(sessionStart);
@@ -113,7 +126,15 @@ export default function PhotoBoothApp() {
     setShotCountdown(null);
     setFlash(false);
     setIsRunning(false);
-  }, [isRunning, status, resetStrip, captureAllShots]);
+  }, [
+    isRunning,
+    status,
+    resetStrip,
+    captureAllShots,
+    stream,
+    startRecording,
+    stopRecording,
+  ]);
 
   const handleConfirmSelection = useCallback(async () => {
     if (selectedIndices.length !== SELECT_COUNT || !capturedAt) return;
@@ -130,6 +151,8 @@ export default function PhotoBoothApp() {
     setPhase("idle");
     setFrames([]);
     setSelectedIndices([]);
+    setSessionVideo(null);
+    setFinalStripDataUrl(null);
     setCapturedAt(null);
     setShotCountdown(null);
     setFlash(false);
@@ -154,7 +177,7 @@ export default function PhotoBoothApp() {
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-y-auto bg-white px-4 py-8">
       <header className="relative z-10 mb-6 text-center">
-        <h1 className="font-sans text-3xl font-bold tracking-wide text-booth-film md:text-4xl">
+        <h1 className="font-handwriting text-3xl font-bold tracking-wide text-booth-film md:text-4xl">
           인생네컷
         </h1>
         <p className="mt-2 font-sans text-xs tracking-[0.3em] text-booth-dim">
@@ -192,16 +215,25 @@ export default function PhotoBoothApp() {
         {phase === "done" && (
           <div className="flex w-full flex-col items-center gap-6">
             <FilmStrip
-              dataUrl={stripDataUrl}
+              dataUrl={finalStripDataUrl ?? stripDataUrl}
               isComposing={isComposing}
               error={stripError}
             />
+            <ShareQr
+              stripDataUrl={stripDataUrl}
+              videoBlob={sessionVideo}
+              onFinalImageReady={setFinalStripDataUrl}
+            />
             <div className="flex w-full max-w-xs flex-col items-center gap-3">
-              <DownloadButton dataUrl={stripDataUrl} capturedAt={capturedAt} />
+              <DownloadButton
+                dataUrl={finalStripDataUrl ?? stripDataUrl}
+                capturedAt={capturedAt}
+              />
               <button
                 type="button"
                 onClick={handleRetake}
-                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
+                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent"
+              >
                 처음으로 돌아가기
               </button>
             </div>
@@ -214,13 +246,15 @@ export default function PhotoBoothApp() {
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
                   컷마다 10초의 준비 시간 후 촬영됩니다.
-                  <br />총 8컷 · 약 80초 소요
+                  <br />
+                  총 8컷 · 약 80초 소요
                 </p>
                 <button
                   type="button"
                   onClick={startCaptureSequence}
                   disabled={status !== "ready" || isRunning}
-                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40">
+                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40"
+                >
                   촬영 시작
                 </button>
               </>
@@ -249,7 +283,7 @@ export default function PhotoBoothApp() {
       </main>
 
       <footer className="relative z-10 mt-8 font-sans text-[10px] tracking-widest text-booth-dim/60">
-        B&W Film Booth
+        이 페이지는 세종글꽃체를 사용하여 제작되었습니다.
       </footer>
     </div>
   );

@@ -67,7 +67,8 @@ export default function ShotSelector({
                 isSelected
                   ? "border-booth-film ring-2 ring-booth-film/30"
                   : "border-booth-border hover:border-booth-accent"
-              } ${isShaking ? "animate-shake" : ""}`}>
+              } ${isShaking ? "animate-shake" : ""}`}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={frame}
@@ -96,13 +97,15 @@ export default function ShotSelector({
           type="button"
           onClick={onNext}
           disabled={!canProceed}
-          className="w-full rounded border border-booth-film bg-booth-film px-6 py-3.5 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-40">
+          className="w-full rounded border border-booth-film bg-booth-film px-6 py-3.5 font-sans text-sm font-semibold text-booth-bg transition enabled:hover:bg-booth-accent enabled:hover:border-booth-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
           다음
         </button>
         <button
           type="button"
           onClick={onRetake}
-          className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
+          className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent"
+        >
           처음으로 돌아가기
         </button>
       </div>

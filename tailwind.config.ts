@@ -29,6 +29,7 @@ const config: Config = {
           "system-ui",
           "sans-serif",
         ],
+        handwriting: ["SejongGeulggot", "Pretendard", "sans-serif"],
       },
       boxShadow: {
         vignette: "inset 0 0 120px rgba(0,0,0,0.85)",

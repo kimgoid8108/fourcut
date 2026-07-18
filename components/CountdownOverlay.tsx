@@ -51,7 +51,8 @@ export default function CountdownOverlay({
               <span
                 aria-hidden
                 className="absolute animate-count-exit font-sans text-[8rem] font-bold leading-none text-booth-onvideo"
-                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}>
+                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}
+              >
                 {previous}
               </span>
             )}
@@ -60,7 +61,8 @@ export default function CountdownOverlay({
                 className={`absolute font-sans text-[8rem] font-bold leading-none text-booth-onvideo ${
                   previous !== null ? "animate-count-enter" : ""
                 }`}
-                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}>
+                style={{ textShadow: "0 0 40px rgba(0,0,0,0.5)" }}
+              >
                 {current}
               </span>
             )}
