@@ -8,6 +8,8 @@ interface UseFilmStripResult {
   isComposing: boolean;
   error: string | null;
   compose: (frames: string[], capturedAt: Date) => Promise<string | null>;
+  /** 이미 합성된 dataUrl을 (다시 합성하지 않고) 그대로 복원할 때 사용 */
+  restore: (dataUrl: string) => void;
   reset: () => void;
 }
 
@@ -26,12 +28,20 @@ export function useFilmStrip(): UseFilmStripResult {
       return dataUrl;
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "필름 스트립을 생성하지 못했습니다.";
+        err instanceof Error
+          ? err.message
+          : "필름 스트립을 생성하지 못했습니다.";
       setError(message);
       return null;
     } finally {
       setIsComposing(false);
     }
+  }, []);
+
+  const restore = useCallback((dataUrl: string) => {
+    setStripDataUrl(dataUrl);
+    setError(null);
+    setIsComposing(false);
   }, []);
 
   const reset = useCallback(() => {
@@ -40,5 +50,5 @@ export function useFilmStrip(): UseFilmStripResult {
     setIsComposing(false);
   }, []);
 
-  return { stripDataUrl, isComposing, error, compose, reset };
+  return { stripDataUrl, isComposing, error, compose, restore, reset };
 }

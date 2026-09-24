@@ -7,6 +7,8 @@ import CallAdminButton from "@/components/CallAdminButton";
 import CountdownOverlay from "@/components/CountdownOverlay";
 import DownloadButton from "@/components/DownloadButton";
 import FilmStrip from "@/components/FilmStrip";
+import PreviousPhotosDialog from "@/components/PreviousPhotosDialog";
+import SelphyPrintButton from "@/components/SelphyPrintButton";
 import ShareQr from "@/components/ShareQr";
 import ShotSelector from "@/components/ShotSelector";
 import VideoDownloadButton from "@/components/VideoDownloadButton";
@@ -23,6 +25,14 @@ import {
   TOTAL_CAPTURE_SHOTS,
 } from "@/lib/constants";
 import type { BoothPhase } from "@/lib/constants";
+import {
+  hasPersistedResults,
+  listPersistedResults,
+  loadPersistedResult,
+  savePersistedResult,
+  type PersistedResult,
+  type PersistedResultSummary,
+} from "@/lib/resultPersistence";
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -31,11 +41,19 @@ function wait(ms: number): Promise<void> {
 export default function PhotoBoothApp() {
   const { videoRef, stream, status, errorMessage, startCamera, stopCamera } =
     useCamera({ facingMode: "user" });
-  const { stripDataUrl, isComposing, error: stripError, compose, reset: resetStrip } =
-    useFilmStrip();
+  const {
+    stripDataUrl,
+    isComposing,
+    error: stripError,
+    compose,
+    restore: restoreStrip,
+    reset: resetStrip,
+  } = useFilmStrip();
   const { startShotRecording, stopShotRecording } = useShotRecorder();
-  const { startRecording: startFullRecording, stopRecording: stopFullRecording } =
-    useSessionRecorder();
+  const {
+    startRecording: startFullRecording,
+    stopRecording: stopFullRecording,
+  } = useSessionRecorder();
 
   const [phase, setPhase] = useState<BoothPhase>("idle");
   const [frames, setFrames] = useState<string[]>([]);
@@ -49,7 +67,22 @@ export default function PhotoBoothApp() {
   const [fullSessionVideo, setFullSessionVideo] = useState<Blob | null>(null);
   const [isBuildingMosaic, setIsBuildingMosaic] = useState(false);
   const [mosaicCountdown, setMosaicCountdown] = useState<number | null>(null);
-  const [finalStripDataUrl, setFinalStripDataUrl] = useState<string | null>(null);
+  const [finalStripDataUrl, setFinalStripDataUrl] = useState<string | null>(
+    null,
+  );
+  // 브라우저 저장소에서 이전 결과를 복원하는 중인지 (복원 완료 전까지는
+  // 저장 effect가 빈 상태로 덮어쓰지 않도록 막는 용도)
+  const [hasRestored, setHasRestored] = useState(false);
+  // 시작 화면에 "이전 사진 불러오기" 버튼을 보여줄지 여부
+  const [hasSavedResult, setHasSavedResult] = useState(false);
+  const [showSavedResults, setShowSavedResults] = useState(false);
+  const [isLoadingSavedResults, setIsLoadingSavedResults] = useState(false);
+  const [selectingSavedResultId, setSelectingSavedResultId] = useState<
+    string | null
+  >(null);
+  const [savedResults, setSavedResults] = useState<
+    PersistedResultSummary[]
+  >([]);
 
   const abortRef = useRef(false);
   // 컷별로 따로 녹화해둔 10초 영상 클립들. shotVideosRef.current[i] = i번째 컷의 영상
@@ -58,6 +91,103 @@ export default function PhotoBoothApp() {
   useEffect(() => {
     startCamera();
   }, [startCamera]);
+
+  // 저장된 결과(saved)를 현재 화면 상태로 그대로 반영한다.
+  // - 탭 재오픈 시 자동 복원
+  // - "이전 사진 불러오기" 버튼으로 수동 복원
+  // 둘 다 이 함수를 공유한다.
+  const applySavedResult = useCallback(
+    (saved: PersistedResult) => {
+      setCapturedAt(new Date(saved.capturedAt));
+      restoreStrip(saved.imageDataUrl);
+      setFinalStripDataUrl(null);
+      setMosaicVideo(null);
+      setFullSessionVideo(null);
+      setPhase("done");
+    },
+    [restoreStrip],
+  );
+
+  // 앱을 열거나 새로고침했을 때 저장된 사진의 존재 여부만 확인한다.
+  // 사진 원본은 사용자가 목록에서 고를 때만 불러온다.
+  useEffect(() => {
+    let cancelled = false;
+
+    void hasPersistedResults().then((hasResults) => {
+      if (cancelled) return;
+      setHasSavedResult(hasResults);
+      setHasRestored(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleOpenSavedResults = useCallback(async () => {
+    setShowSavedResults(true);
+    setIsLoadingSavedResults(true);
+    const results = await listPersistedResults();
+    setSavedResults(results);
+    setHasSavedResult(results.length > 0);
+    setIsLoadingSavedResults(false);
+  }, []);
+
+  const handleCloseSavedResults = useCallback(() => {
+    setShowSavedResults(false);
+    setSavedResults([]);
+  }, []);
+
+  const handleSelectSavedResult = useCallback(
+    async (id: string) => {
+      setSelectingSavedResultId(id);
+      const saved = await loadPersistedResult(id);
+      if (saved) {
+        applySavedResult(saved);
+        setShowSavedResults(false);
+        setSavedResults([]);
+      }
+      setSelectingSavedResultId(null);
+    },
+    [applySavedResult],
+  );
+
+  useEffect(() => {
+    return () => {
+      for (const result of savedResults) {
+        URL.revokeObjectURL(result.thumbnailUrl);
+      }
+    };
+  }, [savedResults]);
+
+  // 완료 화면의 사진만 IndexedDB에 비동기로 저장한다. 영상 Blob은 용량이
+  // 크므로 저장 대상에 포함하지 않는다.
+  useEffect(() => {
+    if (!hasRestored) return;
+    if (phase !== "done") return;
+    if (!capturedAt) return;
+    const imageDataUrl = finalStripDataUrl ?? stripDataUrl;
+    if (!imageDataUrl) return;
+
+    let cancelled = false;
+
+    void savePersistedResult({
+      capturedAt: capturedAt.toISOString(),
+      imageDataUrl,
+    }).then((saved) => {
+      if (saved && !cancelled) setHasSavedResult(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    hasRestored,
+    phase,
+    capturedAt,
+    stripDataUrl,
+    finalStripDataUrl,
+  ]);
 
   const captureWithFlash = useCallback(async (): Promise<string | null> => {
     const video = videoRef.current;
@@ -168,7 +298,7 @@ export default function PhotoBoothApp() {
   const handleConfirmSelection = useCallback(async () => {
     if (selectedIndices.length !== SELECT_COUNT || !capturedAt) return;
 
-    const ordered = [...selectedIndices].sort((a, b) => a - b);
+    const ordered = [...selectedIndices];
     const selectedFrames = ordered.map((index) => frames[index]);
 
     setPhase("done");
@@ -210,6 +340,8 @@ export default function PhotoBoothApp() {
     setShotIndex(0);
     setIsRunning(false);
     resetStrip();
+    // 저장된 이전 결과는 지우지 않는다. 시작 화면의 목록에서 최근 촬영본을
+    // 다시 선택할 수 있고, 저장소에는 최신 20장을 유지한다.
 
     // 촬영/선택 화면으로 넘어가는 동안 <video> 엘리먼트가 언마운트되어
     // 기존 스트림이 새 엘리먼트에 다시 연결되지 않는 문제가 있어서,
@@ -250,7 +382,7 @@ export default function PhotoBoothApp() {
         </p>
       </header>
 
-      <main className="relative z-10 flex w-full max-w-lg flex-col items-center gap-6">
+      <main className="relative z-10 flex w-full max-w-5xl flex-col items-center gap-6">
         {(phase === "idle" || phase === "capturing") && (
           <div className="relative w-full max-w-lg">
             <CameraBooth
@@ -305,6 +437,10 @@ export default function PhotoBoothApp() {
             />
             <div className="flex w-full max-w-xs flex-col items-center gap-3">
               <CallAdminButton />
+              <SelphyPrintButton
+                dataUrl={finalStripDataUrl ?? stripDataUrl}
+                capturedAt={capturedAt}
+              />
               <DownloadButton
                 dataUrl={finalStripDataUrl ?? stripDataUrl}
                 capturedAt={capturedAt}
@@ -324,8 +460,7 @@ export default function PhotoBoothApp() {
               <button
                 type="button"
                 onClick={handleRetake}
-                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent"
-              >
+                className="w-full rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
                 처음으로 돌아가기
               </button>
             </div>
@@ -338,17 +473,24 @@ export default function PhotoBoothApp() {
               <>
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
                   컷마다 5초의 준비 시간 후 촬영됩니다.
-                  <br />
-                  총 8컷 · 약 40초 소요
+                  <br />총 8컷 · 약 40초 소요
                 </p>
                 <button
                   type="button"
                   onClick={startCaptureSequence}
                   disabled={status !== "ready" || isRunning}
-                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40"
-                >
+                  className="w-full max-w-xs rounded border border-booth-film bg-transparent px-8 py-4 font-sans text-base font-semibold text-booth-film transition enabled:hover:bg-booth-film enabled:hover:text-booth-bg disabled:cursor-not-allowed disabled:opacity-40">
                   촬영 시작
                 </button>
+
+                {hasSavedResult && (
+                  <button
+                    type="button"
+                    onClick={handleOpenSavedResults}
+                    className="w-full max-w-xs rounded border border-booth-border px-6 py-3 font-sans text-xs text-booth-text transition hover:border-booth-accent hover:text-booth-accent">
+                    이전 사진 불러오기
+                  </button>
+                )}
               </>
             )}
 
@@ -380,6 +522,15 @@ export default function PhotoBoothApp() {
           관리자
         </Link>
       </footer>
+
+      <PreviousPhotosDialog
+        isOpen={showSavedResults}
+        isLoading={isLoadingSavedResults}
+        selectingId={selectingSavedResultId}
+        photos={savedResults}
+        onClose={handleCloseSavedResults}
+        onSelect={handleSelectSavedResult}
+      />
     </div>
   );
 }

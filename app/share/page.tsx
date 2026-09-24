@@ -1,15 +1,59 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+
+interface ShareManifest {
+  imageUrl: string;
+  videoUrl: string;
+  fullVideoUrl: string;
+}
 
 function ShareContent() {
   const params = useSearchParams();
-  const img = params.get("img");
-  const video = params.get("video");
-  const fullVideo = params.get("fullvideo");
+  const id = params.get("id");
+  const [manifest, setManifest] = useState<ShareManifest | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(id));
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  if (!img && !video && !fullVideo) {
+  useEffect(() => {
+    if (!id) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadFailed(false);
+
+    fetch(`/api/share/manifest?id=${encodeURIComponent(id)}`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("공유 링크를 찾지 못했습니다.");
+        return response.json() as Promise<ShareManifest>;
+      })
+      .then((result) => {
+        if (!cancelled) setManifest(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadFailed(true);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const img = manifest?.imageUrl ?? params.get("img");
+  const video = manifest?.videoUrl ?? params.get("video");
+  const fullVideo = manifest?.fullVideoUrl ?? params.get("fullvideo");
+
+  if (isLoading) {
+    return (
+      <p className="font-sans text-sm text-booth-dim">불러오는 중...</p>
+    );
+  }
+
+  if (loadFailed || (!img && !video && !fullVideo)) {
     return (
       <p className="font-sans text-sm text-booth-dim">
         잘못된 링크이거나, 3일이 지나 만료된 링크예요.

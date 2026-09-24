@@ -54,7 +54,7 @@
 
   .camera-filter {
 
-    filter: none;
+    filter: brightness(1.03) contrast(1.04) saturate(1.03);
 
   }
 

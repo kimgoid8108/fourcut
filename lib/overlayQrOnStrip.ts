@@ -24,16 +24,13 @@ export async function overlayQrOnStrip(
 
   ctx.drawImage(base, 0, 0);
 
-  // 사진 너비의 약 10%를 QR 크기로, 우측 하단(대각선 아래) 모서리에 배치
+  // 사진 너비의 10% 크기로, 우측 하단 모서리에 배치한다. QR 이미지 자체에
+  // 표준 여백이 포함되어 있으므로 바깥쪽 흰 패딩은 추가하지 않는다.
   const qrSize = Math.round(base.width * 0.1);
   const margin = Math.round(base.width * 0.03);
   const x = base.width - qrSize - margin;
   const y = base.height - qrSize - margin;
 
-  // 사진 위에서도 QR이 스캔 잘 되도록 흰 배경 패딩을 살짝 준다
-  const pad = Math.round(qrSize * 0.1);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x - pad, y - pad, qrSize + pad * 2, qrSize + pad * 2);
   ctx.drawImage(qr, x, y, qrSize, qrSize);
 
   return canvas.toDataURL("image/png");

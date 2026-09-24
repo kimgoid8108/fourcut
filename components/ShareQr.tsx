@@ -68,14 +68,24 @@ export default function ShareQr({
 
         if (cancelled) return;
 
-        const shareUrl =
-          `${window.location.origin}/share?img=${encodeURIComponent(imageResult.imageUrl)}` +
-          `&video=${encodeURIComponent(mosaicResult.url)}` +
-          `&fullvideo=${encodeURIComponent(fullResult.url)}`;
+        const manifestResponse = await fetch("/api/share/manifest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageUrl: imageResult.imageUrl,
+            videoUrl: mosaicResult.url,
+            fullVideoUrl: fullResult.url,
+          }),
+        });
+        if (!manifestResponse.ok) throw new Error("공유 링크 생성 실패");
+
+        const { id } = (await manifestResponse.json()) as { id: string };
+        const shareUrl = `${window.location.origin}/share?id=${id}`;
 
         const qr = await QRCode.toDataURL(shareUrl, {
-          margin: 1,
-          width: 320,
+          errorCorrectionLevel: "M",
+          margin: 4,
+          width: 256,
         });
 
         if (cancelled) return;
@@ -108,7 +118,7 @@ export default function ShareQr({
     return () => {
       cancelled = true;
     };
-  }, [stripDataUrl, videoBlob, fullVideoBlob]);
+  }, [stripDataUrl, videoBlob, fullVideoBlob, onFinalImageReady]);
 
   if (status === "idle") return null;
 
@@ -127,7 +137,7 @@ export default function ShareQr({
       {status === "ready" && qrDataUrl && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt="다운로드 QR코드" className="h-40 w-40" />
+          <img src={qrDataUrl} alt="다운로드 QR코드" className="h-32 w-32" />
           <p className="font-sans text-xs text-booth-dim">
             폰 카메라로 스캔해서 사진·영상·전체영상 받아가세요
           </p>
