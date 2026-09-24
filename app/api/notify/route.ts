@@ -1,4 +1,4 @@
-import { list } from "@vercel/blob";
+import { get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import webpush from "web-push";
 
@@ -26,33 +26,27 @@ export async function POST() {
   }
 
   try {
-    const { blobs } = await list({
-      prefix: "admin/push-subscription.json",
-      limit: 1,
+    const storedSubscription = await get("admin/push-subscription.json", {
+      access: "public",
     });
 
-    if (blobs.length === 0) {
+    if (!storedSubscription || storedSubscription.statusCode !== 200) {
       return NextResponse.json(
         { error: "등록된 관리자 알림 구독이 없습니다. 관리자 페이지에서 먼저 구독해주세요." },
         { status: 404 },
       );
     }
 
-    const res = await fetch(blobs[0].url);
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "구독 정보를 불러오지 못했습니다." },
-        { status: 500 },
-      );
-    }
-    const subscription = await res.json();
+    const subscription = await new Response(storedSubscription.stream).json();
 
     await webpush.sendNotification(
       subscription,
       JSON.stringify({
         title: "🙋 관리자 호출",
         body: "손님이 인화(프린트) 도움을 요청했어요!",
+        url: "/admin",
       }),
+      { TTL: 60, urgency: "high", topic: "admin-call" },
     );
 
     return NextResponse.json({ ok: true });

@@ -1,5 +1,5 @@
-const CACHE_NAME = "insaeng-necut-v1";
-const OFFLINE_URLS = ["/", "/manifest.webmanifest"];
+const CACHE_NAME = "yangmun-necut-v2";
+const OFFLINE_URLS = ["/", "/manifest.webmanifest", "/admin/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -68,6 +68,9 @@ self.addEventListener("push", (event) => {
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
     vibrate: [200, 100, 200],
+    tag: "admin-call",
+    renotify: true,
+    data: { url: data.url || "/admin" },
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -76,12 +79,16 @@ self.addEventListener("push", (event) => {
 // 알림을 탭하면 앱 창을 포커스하거나 새로 연다
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data?.url || "/admin";
   event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clientsArr) => {
-      if (clientsArr.length > 0) {
-        return clientsArr[0].focus();
-      }
-      return self.clients.openWindow("/");
-    }),
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientsArr) => {
+        const adminClient = clientsArr.find((client) =>
+          client.url.includes("/admin"),
+        );
+        if (adminClient) return adminClient.focus();
+        return self.clients.openWindow(targetUrl);
+      }),
   );
 });

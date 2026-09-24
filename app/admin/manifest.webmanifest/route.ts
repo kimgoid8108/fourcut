@@ -5,10 +5,11 @@ export const dynamic = "force-static";
 export async function GET() {
   return NextResponse.json(
     {
-      name: "인생네컷 | Life in Four Cuts",
-      short_name: "인생네컷",
-      description: "아이패드 전면 카메라로 촬영하는 4컷 포토부스",
-      start_url: "/",
+      id: "/admin",
+      name: "양문네컷 관리자 알림",
+      short_name: "관리자 알림",
+      description: "양문네컷 관리자 호출 알림과 촬영 결과 확인",
+      start_url: "/admin",
       display: "standalone",
       orientation: "portrait",
       background_color: "#ffffff",

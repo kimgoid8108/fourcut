@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import ShareFileButton from "@/components/ShareFileButton";
 
 interface ShareManifest {
   imageUrl: string;
@@ -64,17 +65,19 @@ function ShareContent() {
   return (
     <>
       {img && (
-        <a href={img} download className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={img}
             alt="양문네컷 필름 스트립"
             className="max-w-xs rounded shadow-lg"
           />
-          <span className="font-sans text-xs text-booth-dim">
-            사진 저장하기 (탭)
-          </span>
-        </a>
+          <ShareFileButton
+            url={img}
+            label="사진 저장하기"
+            filenamePrefix="yangmun-photo"
+          />
+        </div>
       )}
 
       {video && (
@@ -85,13 +88,11 @@ function ShareContent() {
             playsInline
             className="max-w-xs rounded shadow-lg"
           />
-          <a
-            href={video}
-            download
-            className="font-sans text-xs text-booth-dim underline"
-          >
-            영상 저장하기 (탭)
-          </a>
+          <ShareFileButton
+            url={video}
+            label="영상 저장하기"
+            filenamePrefix="yangmun-video"
+          />
         </div>
       )}
 
@@ -103,13 +104,11 @@ function ShareContent() {
             playsInline
             className="max-w-xs rounded shadow-lg"
           />
-          <a
-            href={fullVideo}
-            download
-            className="font-sans text-xs text-booth-dim underline"
-          >
-            전체영상 저장하기 (탭)
-          </a>
+          <ShareFileButton
+            url={fullVideo}
+            label="전체영상 저장하기"
+            filenamePrefix="yangmun-full-video"
+          />
         </div>
       )}
     </>

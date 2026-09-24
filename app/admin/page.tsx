@@ -15,6 +15,20 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 type AuthStatus = "checking" | "loggedOut" | "loggedIn";
 type SubStatus = "idle" | "subscribing" | "done" | "error";
+type TestStatus = "idle" | "sending" | "sent" | "error";
+
+function isIosDevice(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneApp(): boolean {
+  const iosNavigator = navigator as Navigator & { standalone?: boolean };
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    iosNavigator.standalone === true
+  );
+}
 
 interface AdminPhoto {
   id: string;
@@ -31,7 +45,9 @@ export default function AdminPage() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const [subStatus, setSubStatus] = useState<SubStatus>("idle");
+  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [message, setMessage] = useState("");
+  const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
   const [photos, setPhotos] = useState<AdminPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
@@ -41,6 +57,10 @@ export default function AdminPage() {
       .then((res) => res.json())
       .then((data) => setAuthStatus(data.authenticated ? "loggedIn" : "loggedOut"))
       .catch(() => setAuthStatus("loggedOut"));
+  }, []);
+
+  useEffect(() => {
+    setNeedsHomeScreenInstall(isIosDevice() && !isStandaloneApp());
   }, []);
 
   useEffect(() => {
@@ -115,9 +135,16 @@ export default function AdminPage() {
 
   const subscribe = async () => {
     setSubStatus("subscribing");
+    setTestStatus("idle");
     setMessage("");
 
     try {
+      if (isIosDevice() && !isStandaloneApp()) {
+        throw new Error(
+          "iPhone/iPad에서는 Safari 공유 버튼 → 홈 화면에 추가 후, 생성된 ‘관리자 알림’ 앱에서 다시 눌러주세요.",
+        );
+      }
+
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         throw new Error("이 브라우저는 푸시 알림을 지원하지 않아요.");
       }
@@ -132,7 +159,9 @@ export default function AdminPage() {
         throw new Error("VAPID 공개키가 설정되지 않았어요. 관리자에게 문의하세요.");
       }
 
+      await navigator.serviceWorker.register("/sw.js");
       const registration = await navigator.serviceWorker.ready;
+      await registration.update();
 
       const existing = await registration.pushManager.getSubscription();
       if (existing) {
@@ -161,6 +190,26 @@ export default function AdminPage() {
     } catch (err) {
       setSubStatus("error");
       setMessage(err instanceof Error ? err.message : "알 수 없는 오류가 발생했어요.");
+    }
+  };
+
+  const sendTestNotification = async () => {
+    setTestStatus("sending");
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/notify", { method: "POST" });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "시험 알림을 보내지 못했습니다.");
+      }
+      setTestStatus("sent");
+      setMessage("시험 알림을 보냈습니다. 잠금 화면과 알림 센터를 확인해주세요.");
+    } catch (error) {
+      setTestStatus("error");
+      setMessage(
+        error instanceof Error ? error.message : "시험 알림을 보내지 못했습니다.",
+      );
     }
   };
 
@@ -246,6 +295,12 @@ export default function AdminPage() {
           <p className="mt-2 font-sans text-xs leading-relaxed text-booth-dim">
             손님이 관리자 호출 버튼을 누르면 이 기기로 알림을 받습니다.
           </p>
+          {needsHomeScreenInstall && (
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 font-sans text-xs leading-relaxed text-amber-800">
+              iPhone/iPad는 이 페이지를 홈 화면에 추가한 뒤, 생성된 관리자
+              알림 앱에서 구독해야 합니다.
+            </p>
+          )}
           <button
             type="button"
             onClick={subscribe}
@@ -254,10 +309,22 @@ export default function AdminPage() {
           >
             {subStatus === "done" ? "구독 완료됨 ✓" : "알림 받기 시작"}
           </button>
+          {subStatus === "done" && (
+            <button
+              type="button"
+              onClick={sendTestNotification}
+              disabled={testStatus === "sending"}
+              className="ml-2 mt-4 rounded border border-booth-border px-6 py-3 font-sans text-sm font-semibold text-booth-text transition enabled:hover:border-booth-film disabled:opacity-50"
+            >
+              {testStatus === "sending" ? "보내는 중..." : "시험 알림 보내기"}
+            </button>
+          )}
           {message && (
             <p
               className={`mt-3 font-sans text-xs ${
-                subStatus === "error" ? "text-red-500" : "text-booth-dim"
+                subStatus === "error" || testStatus === "error"
+                  ? "text-red-500"
+                  : "text-booth-dim"
               }`}
             >
               {message}
