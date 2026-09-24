@@ -54,8 +54,11 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: facingMode },
-          width: { ideal: 960 },
-          height: { ideal: 1280 },
+          // 브라우저의 기본 방향은 가로일 수 있으므로 4:3 고해상도를 요청하고,
+          // 촬영 시 실제 제공된 프레임에서 세로 3:4 영역을 잘라 사용한다.
+          width: { ideal: 1920 },
+          height: { ideal: 1440 },
+          aspectRatio: { ideal: 4 / 3 },
         },
         audio: false,
       });

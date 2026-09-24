@@ -7,6 +7,7 @@ import CallAdminButton from "@/components/CallAdminButton";
 import CountdownOverlay from "@/components/CountdownOverlay";
 import DownloadButton from "@/components/DownloadButton";
 import FilmStrip from "@/components/FilmStrip";
+import PhotoFilterPicker from "@/components/PhotoFilterPicker";
 import PreviousPhotosDialog from "@/components/PreviousPhotosDialog";
 import SelphyPrintButton from "@/components/SelphyPrintButton";
 import ShareQr from "@/components/ShareQr";
@@ -17,6 +18,7 @@ import { useFilmStrip } from "@/hooks/useFilmStrip";
 import { useSessionRecorder } from "@/hooks/useSessionRecorder";
 import { useShotRecorder } from "@/hooks/useShotRecorder";
 import { captureFrameFromVideo } from "@/lib/captureFrame";
+import type { PhotoFilterId } from "@/lib/photoFilters";
 import { createMosaicVideo } from "@/lib/createMosaicVideo";
 import {
   FLASH_DURATION_MS,
@@ -83,6 +85,7 @@ export default function PhotoBoothApp() {
   const [savedResults, setSavedResults] = useState<
     PersistedResultSummary[]
   >([]);
+  const [photoFilter, setPhotoFilter] = useState<PhotoFilterId>("natural");
 
   const abortRef = useRef(false);
   // 컷별로 따로 녹화해둔 10초 영상 클립들. shotVideosRef.current[i] = i번째 컷의 영상
@@ -198,8 +201,8 @@ export default function PhotoBoothApp() {
     setFlash(false);
 
     if (abortRef.current) return null;
-    return captureFrameFromVideo(video);
-  }, [videoRef]);
+    return captureFrameFromVideo(video, photoFilter);
+  }, [videoRef, photoFilter]);
 
   const runShotCountdown = useCallback(
     async (shotIdx: number): Promise<boolean> => {
@@ -394,6 +397,7 @@ export default function PhotoBoothApp() {
               shotIndex={shotIndex}
               isCapturing={phase === "capturing"}
               totalShots={TOTAL_CAPTURE_SHOTS}
+              photoFilter={photoFilter}
             />
             <CountdownOverlay shotCountdown={shotCountdown} flash={flash} />
           </div>
@@ -471,6 +475,10 @@ export default function PhotoBoothApp() {
           <div className="flex w-full max-w-lg flex-col items-center gap-4">
             {phase === "idle" && (
               <>
+                <PhotoFilterPicker
+                  value={photoFilter}
+                  onChange={setPhotoFilter}
+                />
                 <p className="text-center font-sans text-xs leading-relaxed text-booth-dim">
                   컷마다 5초의 준비 시간 후 촬영됩니다.
                   <br />총 8컷 · 약 40초 소요

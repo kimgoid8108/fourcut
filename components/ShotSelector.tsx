@@ -59,13 +59,13 @@ export default function ShotSelector({
 
       <section
         aria-label="선택한 사진 미리보기"
-        className="mx-auto w-full max-w-[220px]"
+        className="mx-auto w-full max-w-[280px]"
       >
         <p className="mb-2 text-center font-sans text-xs font-medium text-booth-dim">
           완성 미리보기
         </p>
         <div className="relative aspect-[2/3] w-full overflow-hidden rounded-sm bg-white p-2 shadow-booth">
-          <div className="absolute inset-x-2 bottom-12 top-2 grid grid-cols-2 grid-rows-2 gap-1.5">
+          <div className="absolute inset-x-2 bottom-14 top-2 grid grid-cols-2 grid-rows-2 gap-1.5">
             {Array.from({ length: SELECT_COUNT }).map((_, position) => {
               const frameIndex = selectedIndices[position];
               const frame =
@@ -95,8 +95,8 @@ export default function ShotSelector({
               );
             })}
           </div>
-          <div className="absolute inset-x-0 bottom-0 flex h-12 flex-col items-center justify-center">
-            <span className="font-handwriting text-base text-booth-film">
+          <div className="absolute inset-x-0 bottom-0 flex h-14 flex-col items-center justify-center">
+            <span className="font-handwriting text-lg text-booth-film">
               {BRAND_NAME}
             </span>
             <span className="font-sans text-[8px] text-booth-dim">

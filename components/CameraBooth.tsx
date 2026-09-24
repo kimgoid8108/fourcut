@@ -1,5 +1,7 @@
 "use client";
 
+import { getPhotoFilter, type PhotoFilterId } from "@/lib/photoFilters";
+
 interface CameraBoothProps {
   videoRef: React.RefObject<HTMLVideoElement>;
   stream: MediaStream | null;
@@ -9,6 +11,7 @@ interface CameraBoothProps {
   shotIndex: number;
   isCapturing: boolean;
   totalShots?: number;
+  photoFilter: PhotoFilterId;
 }
 
 export default function CameraBooth({
@@ -20,16 +23,19 @@ export default function CameraBooth({
   shotIndex,
   isCapturing,
   totalShots = 8,
+  photoFilter,
 }: CameraBoothProps) {
-    return (
-      <div className="relative aspect-[3/4] w-full max-w-lg overflow-hidden rounded-2xl bg-booth-muted">
+  const previewFilter = getPhotoFilter(photoFilter).previewFilter;
+  return (
+    <div className="relative aspect-[3/4] w-full max-w-lg overflow-hidden rounded-2xl bg-booth-muted">
         {status === "ready" && stream && (
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="camera-filter h-full w-full scale-x-[-1] object-cover"
+            style={{ filter: previewFilter }}
+            className="h-full w-full scale-x-[-1] object-cover"
           />
         )}
 
@@ -59,6 +65,6 @@ export default function CameraBooth({
             {shotIndex + 1} / {totalShots}
           </div>
         )}
-      </div>
-    );
+    </div>
+  );
 }

@@ -4,6 +4,8 @@
  * 화이트밸런스 + 자동 밝기/대비 + 은은한 소프트 글로우.
  */
 
+import { getPhotoFilter, type PhotoFilterId } from "@/lib/photoFilters";
+
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
@@ -11,7 +13,10 @@ const clamp = (value: number, min: number, max: number): number =>
  * 완만한 그레이월드 화이트밸런스 + 자동 밝기/대비 보정.
  * 캔버스에 이미 그려진 픽셀을 직접 읽고 고쳐서 다시 그린다.
  */
-export function autoCorrectFrame(canvas: HTMLCanvasElement): void {
+export function autoCorrectFrame(
+  canvas: HTMLCanvasElement,
+  filterId: PhotoFilterId = "natural",
+): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
 
@@ -79,6 +84,7 @@ export function autoCorrectFrame(canvas: HTMLCanvasElement): void {
   const exposure = clamp(138 / averageLum, 0.94, 1.12);
   const contrastBoost = clamp(210 / tonalRange, 1, 1.12);
   const saturation = 1.035;
+  const preset = getPhotoFilter(filterId);
   const softenHighlight = (value: number): number =>
     value > 245 ? 245 + (value - 245) * 0.3 : value;
 
@@ -92,10 +98,25 @@ export function autoCorrectFrame(canvas: HTMLCanvasElement): void {
     g = (g - 128) * contrastBoost + 128;
     b = (b - 128) * contrastBoost + 128;
 
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    let lum = 0.299 * r + 0.587 * g + 0.114 * b;
     r = lum + (r - lum) * saturation;
     g = lum + (g - lum) * saturation;
     b = lum + (b - lum) * saturation;
+
+    // 선택한 분위기를 자동 보정 뒤에 더한다. Canvas filter에 의존하지 않고
+    // 픽셀에 직접 반영해 iPad Safari에서도 저장 사진과 미리보기가 맞도록 한다.
+    r = r * preset.exposure * preset.redGain;
+    g = g * preset.exposure * preset.greenGain;
+    b = b * preset.exposure * preset.blueGain;
+
+    r = (r - 128) * preset.contrast + 128;
+    g = (g - 128) * preset.contrast + 128;
+    b = (b - 128) * preset.contrast + 128;
+
+    lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = lum + (r - lum) * preset.saturation + preset.shadowLift;
+    g = lum + (g - lum) * preset.saturation + preset.shadowLift;
+    b = lum + (b - lum) * preset.saturation + preset.shadowLift;
 
     // 밝은 피부와 조명의 디테일이 갑자기 하얗게 날아가지 않도록 완만히 압축한다.
     data[i] = clamp(softenHighlight(r), 0, 255);
@@ -133,7 +154,10 @@ export function applySoftGlow(canvas: HTMLCanvasElement): void {
 }
 
 /** 두 보정을 한 번에 적용하는 헬퍼 */
-export function applyAutoBeautify(canvas: HTMLCanvasElement): void {
-  autoCorrectFrame(canvas);
+export function applyAutoBeautify(
+  canvas: HTMLCanvasElement,
+  filterId: PhotoFilterId = "natural",
+): void {
+  autoCorrectFrame(canvas, filterId);
   applySoftGlow(canvas);
 }
