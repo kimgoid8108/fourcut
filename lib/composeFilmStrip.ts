@@ -11,6 +11,7 @@ import {
   STRIP_PHOTO_COUNT,
 } from "@/lib/constants";
 import { formatCaptureDate, loadImage } from "@/lib/captureFrame";
+import { applyFaceBeautify } from "@/lib/faceBeautify";
 
 // 하단 브랜드 문구("양문네컷") — 크게, 세종글꽃체로
 function drawBrand(ctx: CanvasRenderingContext2D, centerX: number, y: number): void {
@@ -56,6 +57,21 @@ export async function composeFilmStrip(
   }
 
   const images = await Promise.all(frames.map(loadImage));
+  const preparedImages: HTMLCanvasElement[] = [];
+
+  // 실시간 카메라 대신 최종 선택된 4장에만 얼굴 보정을 적용한다.
+  // 원본 프레임은 유지되며 얼굴을 못 찾거나 모델 로딩이 실패해도
+  // 기존 기본 보정본으로 필름 제작을 계속한다.
+  for (const image of images) {
+    const prepared = document.createElement("canvas");
+    prepared.width = image.naturalWidth;
+    prepared.height = image.naturalHeight;
+    const preparedContext = prepared.getContext("2d");
+    if (!preparedContext) throw new Error("Canvas context unavailable");
+    preparedContext.drawImage(image, 0, 0);
+    await applyFaceBeautify(prepared);
+    preparedImages.push(prepared);
+  }
 
   // 좌우 필름 스프로킷(구멍) 장식 없이, 순수한 여백만 사용
   const gridAreaWidth = STRIP_WIDTH - STRIP_PADDING * 2;
@@ -83,7 +99,7 @@ export async function composeFilmStrip(
   const gridStartY = STRIP_PADDING;
 
   for (let i = 0; i < STRIP_PHOTO_COUNT; i++) {
-    const img = images[i];
+    const img = preparedImages[i];
     const row = Math.floor(i / GRID_COLS);
     const col = i % GRID_COLS;
 

@@ -2,8 +2,8 @@ import { applyAutoBeautify } from "@/lib/autoCorrect";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 
 const OUTPUT_ASPECT_RATIO = 3 / 4;
-const MAX_CAPTURE_WIDTH = 960;
-const MAX_CAPTURE_HEIGHT = 1280;
+const MAX_CAPTURE_WIDTH = 1440;
+const MAX_CAPTURE_HEIGHT = 1920;
 const JPEG_QUALITY = 0.92;
 
 export function captureFrameFromVideo(

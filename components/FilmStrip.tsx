@@ -10,7 +10,9 @@ export default function FilmStrip({ dataUrl, isComposing, error }: FilmStripProp
   if (isComposing) {
     return (
       <div className="flex h-64 w-full max-w-xs items-center justify-center">
-        <p className="font-sans text-sm text-booth-dim">필름 인화 중…</p>
+        <p className="font-sans text-sm text-booth-dim">
+          얼굴 보정 후 필름 인화 중…
+        </p>
       </div>
     );
   }
