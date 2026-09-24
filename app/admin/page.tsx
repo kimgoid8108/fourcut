@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -16,6 +16,15 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 type AuthStatus = "checking" | "loggedOut" | "loggedIn";
 type SubStatus = "idle" | "subscribing" | "done" | "error";
 type TestStatus = "idle" | "sending" | "sent" | "error";
+
+interface NotificationDiagnostics {
+  standalone: boolean;
+  notificationSupported: boolean;
+  pushSupported: boolean;
+  permission: NotificationPermission | "unsupported";
+  workerReady: boolean;
+  subscribed: boolean;
+}
 
 function isIosDevice(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -48,6 +57,8 @@ export default function AdminPage() {
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [message, setMessage] = useState("");
   const [needsHomeScreenInstall, setNeedsHomeScreenInstall] = useState(false);
+  const [notificationDiagnostics, setNotificationDiagnostics] =
+    useState<NotificationDiagnostics | null>(null);
   const [photos, setPhotos] = useState<AdminPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
@@ -59,9 +70,43 @@ export default function AdminPage() {
       .catch(() => setAuthStatus("loggedOut"));
   }, []);
 
-  useEffect(() => {
-    setNeedsHomeScreenInstall(isIosDevice() && !isStandaloneApp());
+  const refreshNotificationDiagnostics = useCallback(async () => {
+    const standalone = isStandaloneApp();
+    const notificationSupported = "Notification" in window;
+    const pushSupported =
+      "serviceWorker" in navigator && "PushManager" in window;
+    let workerReady = false;
+    let subscribed = false;
+
+    if ("serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration("/");
+        workerReady = Boolean(registration?.active);
+        subscribed = Boolean(
+          registration && (await registration.pushManager.getSubscription()),
+        );
+      } catch {
+        workerReady = false;
+        subscribed = false;
+      }
+    }
+
+    setNeedsHomeScreenInstall(isIosDevice() && !standalone);
+    setNotificationDiagnostics({
+      standalone,
+      notificationSupported,
+      pushSupported,
+      permission: notificationSupported
+        ? Notification.permission
+        : "unsupported",
+      workerReady,
+      subscribed,
+    });
   }, []);
+
+  useEffect(() => {
+    void refreshNotificationDiagnostics();
+  }, [refreshNotificationDiagnostics]);
 
   useEffect(() => {
     if (authStatus !== "loggedIn") return;
@@ -183,13 +228,22 @@ export default function AdminPage() {
         throw new Error("구독 정보 저장에 실패했어요.");
       }
 
+      await registration.showNotification("관리자 알림 연결 완료", {
+        body: "이 알림이 보이면 기기 알림 권한이 정상적으로 연결됐어요.",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: "admin-notification-ready",
+      });
+
       setSubStatus("done");
       setMessage(
         "구독 완료! 이제 손님이 '관리자(회장님) 부르기'를 누르면 이 기기로 알림이 와요.",
       );
+      await refreshNotificationDiagnostics();
     } catch (err) {
       setSubStatus("error");
       setMessage(err instanceof Error ? err.message : "알 수 없는 오류가 발생했어요.");
+      await refreshNotificationDiagnostics();
     }
   };
 
@@ -300,6 +354,38 @@ export default function AdminPage() {
               iPhone/iPad는 이 페이지를 홈 화면에 추가한 뒤, 생성된 관리자
               알림 앱에서 구독해야 합니다.
             </p>
+          )}
+          {notificationDiagnostics && (
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-xl bg-booth-muted px-4 py-3 font-sans text-xs">
+              <dt className="text-booth-dim">홈 화면 앱 실행</dt>
+              <dd className="text-right font-semibold text-booth-text">
+                {notificationDiagnostics.standalone ? "정상 ✓" : "아니요"}
+              </dd>
+              <dt className="text-booth-dim">알림 기능 지원</dt>
+              <dd className="text-right font-semibold text-booth-text">
+                {notificationDiagnostics.notificationSupported &&
+                notificationDiagnostics.pushSupported
+                  ? "정상 ✓"
+                  : "지원 안 됨"}
+              </dd>
+              <dt className="text-booth-dim">기기 알림 권한</dt>
+              <dd className="text-right font-semibold text-booth-text">
+                {notificationDiagnostics.permission === "granted"
+                  ? "허용됨 ✓"
+                  : notificationDiagnostics.permission === "denied"
+                    ? "차단됨"
+                    : notificationDiagnostics.permission === "default"
+                      ? "아직 요청 전"
+                      : "지원 안 됨"}
+              </dd>
+              <dt className="text-booth-dim">푸시 구독</dt>
+              <dd className="text-right font-semibold text-booth-text">
+                {notificationDiagnostics.workerReady &&
+                notificationDiagnostics.subscribed
+                  ? "등록됨 ✓"
+                  : "미등록"}
+              </dd>
+            </dl>
           )}
           <button
             type="button"
