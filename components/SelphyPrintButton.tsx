@@ -54,7 +54,7 @@ export default function SelphyPrintButton({
 
       await navigator.share(shareData);
       setMessage(
-        "공유 메뉴에서 ‘프린트’를 누른 뒤 Canon SELPHY CP1200을 선택해주세요.",
+        "공유 메뉴에서 ‘프린트’를 누른 뒤 Canon SELPHY CP1500을 선택해주세요.",
       );
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -85,7 +85,7 @@ export default function SelphyPrintButton({
           공유 메뉴가 열리면 아래로 내려
           <br />
           <strong className="font-semibold text-booth-text">프린트</strong> → Canon
-          SELPHY CP1200을 선택해주세요.
+          SELPHY CP1500을 선택해주세요.
         </p>
       )}
     </div>

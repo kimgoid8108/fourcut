@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
+import {
+  ADMIN_COOKIE_NAME,
+  getExpectedAdminToken,
+} from "@/lib/adminAuth";
 
 export const runtime = "nodejs";
 
-const COOKIE_NAME = "admin_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30일
 
-function expectedToken(): string | null {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-  if (!email || !password) return null;
-  return createHash("sha256").update(`${email}:${password}`).digest("hex");
-}
-
 export async function POST(req: NextRequest) {
-  const token = expectedToken();
+  const token = getExpectedAdminToken();
   if (!token) {
     return NextResponse.json(
       { error: "관리자 계정이 설정되지 않았습니다 (ADMIN_EMAIL/ADMIN_PASSWORD 누락)." },
@@ -33,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     const res = NextResponse.json({ ok: true });
-    res.cookies.set(COOKIE_NAME, token, {
+    res.cookies.set(ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
@@ -49,6 +44,6 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, "", { path: "/", maxAge: 0 });
+  res.cookies.set(ADMIN_COOKIE_NAME, "", { path: "/", maxAge: 0 });
   return res;
 }
