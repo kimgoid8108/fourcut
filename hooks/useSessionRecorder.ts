@@ -46,7 +46,9 @@ export function useSessionRecorder(): UseSessionRecorderResult {
     try {
       const recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 3_000_000, // 화질 우선으로 상향 (직접 업로드라 용량 제한 없음)
+        // 처음부터 12Mbps로 녹화해 별도 재압축 없이 40초 기준 약 60MB를 목표로 한다.
+        // 실제 비트레이트는 브라우저 인코더가 결정한다.
+        videoBitsPerSecond: 12_000_000,
         audioBitsPerSecond: 128_000,
       });
 

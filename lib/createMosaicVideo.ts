@@ -38,7 +38,7 @@ function loadVideoEl(blob: Blob): Promise<HTMLVideoElement> {
 
 interface MosaicOptions {
   fps?: number;
-  /** 인쇄용 실제 사이즈(1200px) 대비 영상 해상도 비율. 성능을 위해 절반 정도로. */
+  /** 필름 너비(1200px) 대비 영상 해상도 비율. 기본값 1은 1200×1800 출력. */
   scale?: number;
 }
 
@@ -56,7 +56,7 @@ export async function createMosaicVideo(
     throw new Error("정확히 4개의 영상 클립이 필요합니다.");
   }
 
-  const { fps = 24, scale = 0.5 } = options;
+  const { fps = 24, scale = 1 } = options;
 
   const mimeType = pickSupportedMimeType();
   if (!mimeType) {
@@ -66,7 +66,7 @@ export async function createMosaicVideo(
   // 캔버스에 텍스트를 그리기 전, 웹폰트(세종글꽃체)가 로드됐는지 기다린다
   if (typeof document !== "undefined" && "fonts" in document) {
     try {
-      await document.fonts.load("400 32px SejongGeulggot");
+      await document.fonts.load(`400 ${Math.round(64 * scale)}px SejongGeulggot`);
       await document.fonts.ready;
     } catch {
       // 실패해도 대체 폰트로 계속 진행
@@ -94,6 +94,9 @@ export async function createMosaicVideo(
   if (!ctx) {
     throw new Error("Canvas context unavailable");
   }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   // 사진 그리드와 동일한 순서: 좌상단 → 우상단 → 좌하단 → 우하단
   const positions = [0, 1, 2, 3].map((i) => {
@@ -157,7 +160,7 @@ export async function createMosaicVideo(
   const stream = (canvas as CaptureCanvas).captureStream(fps);
   const recorder = new MediaRecorder(stream, {
     mimeType,
-    videoBitsPerSecond: 3_000_000,
+    videoBitsPerSecond: 8_000_000,
   });
 
   const chunks: BlobPart[] = [];

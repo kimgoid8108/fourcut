@@ -36,9 +36,12 @@ export function useShotRecorder(): UseShotRecorderResult {
     chunksRef.current = [];
 
     try {
-      const recorder = new MediaRecorder(stream, {
+      // 4컷 합성용은 영상 트랙만 담는다. 전체 영상과 공유하는 원본
+      // 마이크 트랙을 끄거나 중지하지 않아 전체 영상의 녹음은 유지된다.
+      const videoOnlyStream = new MediaStream(stream.getVideoTracks());
+      const recorder = new MediaRecorder(videoOnlyStream, {
         mimeType,
-        videoBitsPerSecond: 3_000_000,
+        videoBitsPerSecond: 8_000_000, // 최종 모자이크로 다시 압축할 때의 화질 손실을 줄인다.
       });
 
       recorder.ondataavailable = (e) => {
