@@ -47,6 +47,7 @@ export function useSessionRecorder(): UseSessionRecorderResult {
       const recorder = new MediaRecorder(stream, {
         mimeType,
         videoBitsPerSecond: 3_000_000, // 화질 우선으로 상향 (직접 업로드라 용량 제한 없음)
+        audioBitsPerSecond: 128_000,
       });
 
       recorder.ondataavailable = (e) => {

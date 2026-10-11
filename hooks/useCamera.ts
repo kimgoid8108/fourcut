@@ -51,17 +51,37 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraResult {
         return null;
       });
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facingMode },
-          // 브라우저의 기본 방향은 가로일 수 있으므로 4:3 고해상도를 요청하고,
-          // 촬영 시 실제 제공된 프레임에서 세로 3:4 영역을 잘라 사용한다.
-          width: { ideal: 2560 },
-          height: { ideal: 1920 },
-          aspectRatio: { ideal: 4 / 3 },
-        },
-        audio: false,
-      });
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: { ideal: facingMode },
+        // 브라우저의 기본 방향은 가로일 수 있으므로 4:3 고해상도를 요청하고,
+        // 촬영 시 실제 제공된 프레임에서 세로 3:4 영역을 잘라 사용한다.
+        width: { ideal: 2560 },
+        height: { ideal: 1920 },
+        aspectRatio: { ideal: 4 / 3 },
+      };
+
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+      } catch (audioError) {
+        // 마이크 권한을 거부했거나 마이크를 사용할 수 없어도 사진 부스는
+        // 계속 쓸 수 있도록 카메라 전용 스트림으로 한 번 더 시도한다.
+        console.warn(
+          "마이크를 사용할 수 없어 전체 영상을 무음으로 녹화합니다.",
+          audioError,
+        );
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints,
+          audio: false,
+        });
+      }
 
       setStream(mediaStream);
       setStatus("ready");
