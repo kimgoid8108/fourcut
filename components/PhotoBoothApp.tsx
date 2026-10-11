@@ -17,6 +17,7 @@ import { useCamera } from "@/hooks/useCamera";
 import { useFilmStrip } from "@/hooks/useFilmStrip";
 import { useSessionRecorder } from "@/hooks/useSessionRecorder";
 import { useShotRecorder } from "@/hooks/useShotRecorder";
+import { useShutterSound } from "@/hooks/useShutterSound";
 import { captureFrameFromVideo } from "@/lib/captureFrame";
 import type { PhotoFilterId } from "@/lib/photoFilters";
 import { createMosaicVideo } from "@/lib/createMosaicVideo";
@@ -52,6 +53,7 @@ export default function PhotoBoothApp() {
     reset: resetStrip,
   } = useFilmStrip();
   const { startShotRecording, stopShotRecording } = useShotRecorder();
+  const { prepareShutterSound, playShutterSound } = useShutterSound();
   const {
     startRecording: startFullRecording,
     stopRecording: stopFullRecording,
@@ -201,8 +203,9 @@ export default function PhotoBoothApp() {
     setFlash(false);
 
     if (abortRef.current) return null;
+    playShutterSound();
     return captureFrameFromVideo(video, photoFilter);
-  }, [videoRef, photoFilter]);
+  }, [videoRef, photoFilter, playShutterSound]);
 
   const runShotCountdown = useCallback(
     async (shotIdx: number): Promise<boolean> => {
@@ -253,6 +256,8 @@ export default function PhotoBoothApp() {
   const startCaptureSequence = useCallback(async () => {
     if (isRunning || status !== "ready") return;
 
+    prepareShutterSound();
+
     abortRef.current = false;
     shotVideosRef.current = [];
     setIsRunning(true);
@@ -296,6 +301,7 @@ export default function PhotoBoothApp() {
     stream,
     startFullRecording,
     stopFullRecording,
+    prepareShutterSound,
   ]);
 
   const handleConfirmSelection = useCallback(async () => {
